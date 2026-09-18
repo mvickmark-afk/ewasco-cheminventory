@@ -1,0 +1,52 @@
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+CREATE TABLE IF NOT EXISTS organizations (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS users (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  username text NOT NULL,
+  password_hash text NOT NULL,
+  role text NOT NULL CHECK (role IN ('Administrator','Laboratory Manager','Analyst/Chemist','Storekeeper')),
+  disabled boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (organization_id, username)
+);
+
+CREATE TABLE IF NOT EXISTS sessions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash text NOT NULL UNIQUE,
+  expires_at timestamptz NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS records (
+  id text NOT NULL,
+  organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  entity text NOT NULL CHECK (entity IN ('chemicals','batches','reagents','consumption','equipment','calibrations','suppliers','procurement','water','waste','sds','settings')),
+  data jsonb NOT NULL CHECK (jsonb_typeof(data) = 'object'),
+  version integer NOT NULL DEFAULT 1,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (organization_id, entity, id)
+);
+
+CREATE TABLE IF NOT EXISTS audit_log (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  user_id uuid REFERENCES users(id) ON DELETE SET NULL,
+  action text NOT NULL,
+  entity text NOT NULL,
+  record_id text,
+  data jsonb,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS records_org_entity_updated_idx ON records(organization_id, entity, updated_at DESC);
+CREATE INDEX IF NOT EXISTS audit_org_created_idx ON audit_log(organization_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS sessions_expiry_idx ON sessions(expires_at);
