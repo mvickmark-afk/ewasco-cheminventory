@@ -1,5 +1,3 @@
-const { test } = await import('node:test');
-const assert = await import('node:assert/strict');
-const { can, canManageUsers } = await import('../src/permissions.js');
-test('roles restrict mutations', () => { assert.equal(can('Storekeeper','delete','chemicals'), false); assert.equal(can('Storekeeper','update','chemicals'), true); assert.equal(can('Analyst/Chemist','create','consumption'), true); assert.equal(can('Analyst/Chemist','create','chemicals'), false); });
-test('only administrators manage users', () => { assert.equal(canManageUsers('Administrator'), true); assert.equal(canManageUsers('Laboratory Manager'), false); });
+const test=await import('node:test'),assert=await import('node:assert/strict');const {can,feature,validate}=await import('../src/permissions.js');
+test.test('least privilege',()=>{assert.equal(can('Storekeeper','delete','chemicals'),false);assert.equal(can('Analyst/Chemist','create','chemicals'),false);assert.equal(feature('Administrator','backup'),true);assert.equal(feature('Storekeeper','backup'),false)});
+test.test('domain validation rejects unsafe chemical values',()=>{assert.throws(()=>validate('chemicals',{id:'c',name:'',quantity:-1}));assert.throws(()=>validate('chemicals',{id:'c',name:'x',unit:'g',cas:'bad'}));assert.doesNotThrow(()=>validate('chemicals',{id:'c',name:'x',quantity:1,unit:'g',cas:'7647-01-0'}))});

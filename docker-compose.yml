@@ -2,26 +2,25 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: ewasco
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes: [postgres_data:/var/lib/postgresql/data]
+    healthcheck: {test: ["CMD-SHELL","pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"],interval: 10s,timeout: 5s,retries: 10}
   app:
     build: ./server
-    depends_on:
-      - db
-    ports:
-      - "3000:3000"
+    depends_on: {db: {condition: service_healthy}}
+    ports: ["3000:3000"]
     environment:
-      DATABASE_URL: postgres://postgres:postgres@db:5432/ewasco
-      JWT_SECRET: change-this-to-a-random-secret-of-at-least-32-characters
-      COOKIE_SECURE: "false"
-      ORG_NAME: EWASCO
-      ADMIN_USERNAME: admin
-      ADMIN_PASSWORD: change-this-admin-password
-    volumes:
-      - uploads:/app/uploads
-volumes:
-  postgres_data:
-  uploads:
+      NODE_ENV: production
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
+      COOKIE_SECURE: ${COOKIE_SECURE:?set COOKIE_SECURE}
+      CORS_ORIGIN: ${CORS_ORIGIN:?set CORS_ORIGIN}
+      ORG_NAME: ${ORG_NAME:-EWASCO}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD}
+      SEED_ADMIN: ${SEED_ADMIN:-false}
+    volumes: [uploads:/app/uploads]
+    healthcheck: {test: ["CMD","wget","-qO-","http://127.0.0.1:3000/readyz"],interval: 30s,timeout: 5s,retries: 3}
+volumes: {postgres_data: {}, uploads: {}}
