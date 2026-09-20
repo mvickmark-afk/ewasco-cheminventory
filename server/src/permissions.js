@@ -17,7 +17,8 @@ export const userSchema = z.object({ username: z.string().trim().toLowerCase().m
 
 const cas = z.string().regex(/^\d{2,7}-\d{2}-\d$/);
 const units = z.enum(['g', 'kg', 'mg', 'mL', 'L', 'pcs']);
-const date = z.string().date();
+// Keep this compatible with the repository's supported Zod versions.
+const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected an ISO date (YYYY-MM-DD)');
 const optionalText = (max = 200) => z.string().trim().max(max).optional();
 
 export function validate(entity, input) {
