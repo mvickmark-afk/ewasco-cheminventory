@@ -166,7 +166,7 @@ test('HTTP authentication and CSRF protection work through the real server', { s
         );
       }
 
-      const restoredRecords = await pool.query('SELECT id,data FROM records WHERE organization_id=$1 AND entity=\\'chemicals\\' ORDER BY id', [recoveryOrganizationId]);
+      const restoredRecords = await pool.query("SELECT id,data FROM records WHERE organization_id=$1 AND entity='chemicals' ORDER BY id", [recoveryOrganizationId]);
       const restoredBatches = await pool.query('SELECT id,chemical_id,lot_number,received_quantity,unit FROM inventory_batches WHERE organization_id=$1 ORDER BY id', [recoveryOrganizationId]);
       const restoredTransactions = await pool.query('SELECT id,transaction_type,chemical_id,batch_id,quantity,unit FROM inventory_transactions WHERE organization_id=$1 ORDER BY id', [recoveryOrganizationId]);
 
