@@ -4,9 +4,18 @@ import fs from 'node:fs/promises';
 
 test('server-served frontend scripts are syntactically valid', async () => {
   const html = await fs.readFile(new URL('../public/index.html', import.meta.url), 'utf8');
-  const scripts = [...html.matchAll(/<script(?:[^>]*)>([\\s\\S]*?)<\\/script>/gi)]
-    .map(match => match[1])
-    .filter(Boolean);
+  const scripts = [];
+  let cursor = 0;
+  while (true) {
+    const start = html.indexOf('<script', cursor);
+    if (start < 0) break;
+    const openEnd = html.indexOf('>', start);
+    const close = html.indexOf('</script>', openEnd + 1);
+    if (openEnd < 0 || close < 0) break;
+    const source = html.slice(openEnd + 1, close);
+    if (source.trim()) scripts.push(source);
+    cursor = close + '</script>'.length;
+  }
   assert.ok(scripts.length >= 1);
   for (const script of scripts) {
     assert.doesNotThrow(() => new Function(script));
