@@ -76,27 +76,28 @@ The inventory UI uses the transaction engine as its source of truth instead of d
 7. The UI must not bypass the API to alter inventory.
 8. Generic record editing remains available for non-inventory modules while specialised workflows are built.
 
-## Verification work in progress
+## Verification status
 
-- Added a real HTTP integration test covering login, database-backed session authentication, organisation identity, missing-CSRF rejection and valid-CSRF mutation.
-- Corrected the dashboard to display the organisation name returned by the authenticated API rather than deriving an organisation name from the username.
-- Unit handling in inventory issue/return/adjust/dispose/transfer is currently exact-unit matching; no implicit conversions are performed.
+The backend verification gate is now green. Server tests Run #102 for commit `8d8b05f13c7cfb63c13979ffcf7902ac6f3f46ee` completed successfully with 23/23 tests passing. The suite covers backup manifest validation, tamper and relationship rejection, real HTTP authentication and CSRF, PostgreSQL inventory flows, FIFO, insufficient-stock rollback, organisation isolation, concurrent issue protection, expiry exclusion, RBAC, database invariants, frontend syntax checks, and clean-organisation recovery.
 
-## Remaining verification
+The recovery work verified the versioned SHA-256 backup manifest and controlled restore path. Restore remaps globally unique inventory IDs and batch references so a recovered organisation does not collide with source IDs. Restore provenance was hardened so imported inventory rows do not retain source-organisation user UUIDs.
 
-These are still open and must not be represented as complete:
+The CI runner reported zero npm audit vulnerabilities. The workflow was subsequently moved from Node 20 to Node 22 LTS to remove the GitHub Actions Node 20 deprecation warning.
 
-1. Fresh CI verification after the latest test and HTTP-security changes.
-2. Real HTTP authentication/session/CSRF integration tests.
-3. Backup/restore verification. Backup export exists; restore verification is not complete.
-4. Audit-log integrity and full API-level organisation-isolation tests.
-5. Migration upgrade testing against representative existing database states.
-6. Unit-conversion policy and enforcement.
-7. Browser/E2E tests.
-8. Production deployment verification.
-9. Formal inventory reconciliation workflow.
-10. Configurable expiry/quarantine policy.
-11. Configurable adjustment approval policy.
+## Remaining production-readiness work
+
+The core inventory/recovery verification gate is green, but the application should not yet be described as fully production-ready. Remaining items are operational/product gates rather than unresolved CI failures:
+
+1. Production PostgreSQL backup/PITR and private upload-storage backup strategy.
+2. Deployment verification with real TLS, explicit CORS, secure cookies, secrets, database connectivity and health checks.
+3. Browser/E2E verification on supported mobile and desktop browsers.
+4. Migration upgrade testing against a representative pre-existing database.
+5. Formal inventory reconciliation and approval workflows.
+6. Configurable expiry/quarantine and adjustment-approval policies.
+7. User administration/bootstrap workflow for a newly restored organisation.
+8. SDS/file-storage disaster-recovery verification; the JSON backup is not a full binary-file backup.
+
+These are intentionally not marked complete until tested in their target environment.
 
 ## Frontend caveats
 
