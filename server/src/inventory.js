@@ -53,6 +53,8 @@ async function batchBalance(client, organizationId, batchId) {
     `SELECT COALESCE(SUM(CASE
       WHEN transaction_type IN ('RECEIVE','RETURN') THEN quantity
       WHEN transaction_type IN ('ISSUE','DISPOSAL') THEN -quantity
+      WHEN transaction_type='ADJUSTMENT' AND metadata->>'direction'='DECREASE' THEN -quantity
+      WHEN transaction_type='ADJUSTMENT' AND metadata->>'direction'='INCREASE' THEN quantity
       ELSE 0 END),0) AS balance
       FROM inventory_transactions
       WHERE organization_id=$1 AND batch_id=$2`,
@@ -170,7 +172,9 @@ export function registerInventoryRoutes({ app, pool, auth, audit }) {
                 b.received_at AS "receivedAt",b.expiry_date AS "expiryDate",b.unit,b.location,
                 b.received_quantity AS "receivedQuantity",
                 COALESCE(SUM(CASE WHEN t.transaction_type IN ('RECEIVE','RETURN') THEN t.quantity
-                                  WHEN t.transaction_type IN ('ISSUE','DISPOSAL') THEN -t.quantity ELSE 0 END),0) AS "availableQuantity"
+                                  WHEN t.transaction_type IN ('ISSUE','DISPOSAL') THEN -t.quantity
+                                  WHEN t.transaction_type='ADJUSTMENT' AND t.metadata->>'direction'='DECREASE' THEN -t.quantity
+                                  WHEN t.transaction_type='ADJUSTMENT' AND t.metadata->>'direction'='INCREASE' THEN t.quantity ELSE 0 END),0) AS "availableQuantity"
          FROM inventory_batches b
          LEFT JOIN inventory_transactions t ON t.organization_id=b.organization_id AND t.batch_id=b.id
          WHERE b.organization_id=$1 AND b.chemical_id=$2
