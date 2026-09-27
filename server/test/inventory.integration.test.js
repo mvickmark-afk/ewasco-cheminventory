@@ -340,13 +340,13 @@ test('RBAC permits batch inventory mutations for Storekeeper and blocks Analyst/
 
   const transferred = await request('/api/inventory/transfer', {
     method: 'POST',
-    body: JSON.stringify({ chemicalId: workflowChemicalId, batchId: storeBatchId, quantity: 8, unit: 'L', toLocation: 'Storekeeper Cabinet' })
+    body: JSON.stringify({ chemicalId: workflowChemicalId, batchId: storeBatchId, quantity: 1, unit: 'L', toLocation: 'Storekeeper Cabinet' })
   });
   assert.equal(transferred.response.status, 201);
 
   const storeStock = await request(`/api/inventory/stock/${workflowChemicalId}`);
   const storeBatch = storeStock.body.find(x => x.batchId === storeBatchId);
-  assert.equal(storeBatch.availableQuantity, 8);
+  assert.equal(storeBatch.availableQuantity, 1);
   assert.equal(storeBatch.location, 'Storekeeper Cabinet');
 
   activeUser = { id: userId, organization_id: organisationId, username: 'analyst', role: 'Analyst/Chemist' };
