@@ -37,7 +37,7 @@ app.post('/api/backup/validate',auth,feat('restore'),(req,res)=>{try{validateBac
     for(const t of backup.state.inventory_transactions){
       const newBatchId=t.batch_id ? batchIdMap.get(t.batch_id) : null;
       if(t.batch_id && !newBatchId) throw Error(`Restored transaction references missing batch: ${t.batch_id}`);
-      await c.query('INSERT INTO inventory_transactions(id,organization_id,transaction_type,chemical_id,batch_id,quantity,unit,reference,reason,actor_id,created_at,metadata) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)',[crypto.randomUUID(),org.id,t.transaction_type,t.chemical_id,newBatchId,t.quantity,t.unit,t.reference,t.reason,req.user.id,t.created_at,t.metadata||{}]);
+      await c.query('INSERT INTO inventory_transactions(id,organization_id,transaction_type,chemical_id,batch_id,quantity,unit,reference,reason,actor_id,created_at,metadata) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)',[crypto.randomUUID(),org.id,t.transaction_type,t.chemical_id,newBatchId,t.quantity,t.unit,t.reference,t.reason,null,t.created_at,t.metadata||{}]);
     }
     const bad=await c.query(`SELECT b.id FROM inventory_batches b LEFT JOIN inventory_transactions t ON t.batch_id=b.id AND t.organization_id=b.organization_id GROUP BY b.id HAVING COALESCE(SUM(CASE WHEN t.transaction_type IN ('RECEIVE','RETURN') THEN t.quantity WHEN t.transaction_type IN ('ISSUE','DISPOSAL') THEN -t.quantity WHEN t.transaction_type='ADJUSTMENT' AND COALESCE(t.metadata->>'direction','')='INCREASE' THEN t.quantity WHEN t.transaction_type='ADJUSTMENT' AND COALESCE(t.metadata->>'direction','')='DECREASE' THEN -t.quantity ELSE 0 END),0)<0`);
     if(bad.rowCount) throw Error('Restored inventory invariant failed');
