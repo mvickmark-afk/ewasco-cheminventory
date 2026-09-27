@@ -1,14 +1,31 @@
 # Chemical inventory workflow
 
-The first feature increment adds server-side validation for a richer chemical inventory record.
+This increment provides validation for the transitional chemical master record. It is not yet the authoritative inventory engine.
 
-Supported fields:
+Validated fields include:
 
-- `name` and optional CAS number
-- `quantity`, `minimumQuantity`, and `unit`
-- `location`, `supplier`, and `lotNumber`
-- `hazardClass`, `expiry`, and `notes`
+- chemical name and optional CAS number
+- transitional quantity and minimum-quantity fields
+- unit
+- location
+- supplier
+- lot number
+- hazard class
+- expiry
+- notes
 
-The API rejects negative quantities, invalid units, invalid CAS numbers, and invalid ISO dates. Existing role permissions remain enforced by the API.
+The API rejects negative quantities, invalid units, invalid CAS numbers, and malformed ISO dates. Existing server-side role permissions remain enforced.
 
-Next UI increment: replace the generic JSON editor in `server/public/index.html` with a chemical form and inventory table using these fields, then add low-stock and expiry filters.
+## Important domain boundary
+
+The current `quantity` field is retained only for compatibility with the existing generic-record layer. It must not be extended into a stock ledger.
+
+The authoritative inventory implementation will separate:
+
+1. Chemical master — what the substance is.
+2. Batch/lot — a physical received quantity.
+3. Inventory transaction — every movement affecting stock.
+
+The next implementation step is therefore receiving and batch creation followed by an immutable transaction ledger and server-side FIFO allocation.
+
+See `PRODUCT-ARCHITECTURE.md` for the frozen product architecture and development sequence.
