@@ -99,6 +99,7 @@
     inventoryAdjust: data => json('POST', '/inventory/adjust', data),
     inventoryDispose: data => json('POST', '/inventory/dispose', data),
     inventoryTransfer: data => json('POST', '/inventory/transfer', data),
+    backup: () => request('/backup'),
     create: (entity, data) => json('POST', recordPath(entity), data),
     update: (entity, id, data) => json('PUT', `${recordPath(entity)}/${encodeURIComponent(id)}`, data),
     remove: (entity, id) => request(`${recordPath(entity)}/${encodeURIComponent(id)}`, { method: 'DELETE' })
