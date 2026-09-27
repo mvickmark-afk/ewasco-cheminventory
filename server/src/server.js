@@ -32,7 +32,7 @@ app.post('/api/backup/validate',auth,feat('restore'),(req,res)=>{try{validateBac
     for(const b of backup.state.inventory_batches){
       const newBatchId=crypto.randomUUID();
       batchIdMap.set(b.id,newBatchId);
-      await c.query('INSERT INTO inventory_batches(id,organization_id,chemical_id,lot_number,received_at,expiry_date,unit,received_quantity,location,max_quantity,metadata,created_by) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)',[newBatchId,org.id,b.chemical_id,b.lot_number,b.received_at,b.expiry_date,b.unit,b.received_quantity,b.location,b.max_quantity,b.metadata||{},req.user.id]);
+      await c.query('INSERT INTO inventory_batches(id,organization_id,chemical_id,lot_number,received_at,expiry_date,unit,received_quantity,location,max_quantity,metadata,created_by) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)',[newBatchId,org.id,b.chemical_id,b.lot_number,b.received_at,b.expiry_date,b.unit,b.received_quantity,b.location,b.max_quantity,b.metadata||{},null]);
     }
     for(const t of backup.state.inventory_transactions){
       const newBatchId=t.batch_id ? batchIdMap.get(t.batch_id) : null;
