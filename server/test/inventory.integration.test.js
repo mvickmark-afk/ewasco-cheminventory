@@ -14,6 +14,7 @@ const userId = crypto.randomUUID();
 const otherOrganisationId = crypto.randomUUID();
 const otherUserId = crypto.randomUUID();
 const chemicalId = `IT-${crypto.randomUUID().slice(0, 8)}`;
+const concurrentChemicalId = `IT-CONC-${crypto.randomUUID().slice(0, 8)}`;
 
 let server;
 let baseUrl;
@@ -69,6 +70,10 @@ before(async () => {
     ]
   );
   await insertChemical(organisationId);
+  await pool.query(
+    'INSERT INTO records(id,organization_id,entity,data) VALUES($1,$2,$3,$4)',
+    [concurrentChemicalId, organisationId, 'chemicals', JSON.stringify({ id: concurrentChemicalId, name: 'Concurrent Test Chemical', unit: 'L' })]
+  );
 
   const app = buildApp({ id: userId, organization_id: organisationId, username: 'integration', role: 'Administrator' });
   await new Promise(resolve => {
@@ -158,24 +163,24 @@ test('organisation isolation prevents cross-tenant chemical access', { skip: !sh
 test('concurrent issues cannot oversell a batch', { skip: !shouldRun }, async () => {
   const received = await request('/api/inventory/receive', {
     method: 'POST',
-    body: JSON.stringify({ chemicalId, lotNumber: 'IT-LOT-CONCURRENT', quantity: 10, unit: 'L' })
+    body: JSON.stringify({ chemicalId: concurrentChemicalId, lotNumber: 'IT-LOT-CONCURRENT', quantity: 10, unit: 'L' })
   });
   assert.equal(received.response.status, 201);
 
   const [a, b] = await Promise.all([
     request('/api/inventory/issue', {
       method: 'POST',
-      body: JSON.stringify({ chemicalId, quantity: 7, unit: 'L', reason: 'Concurrent A' })
+      body: JSON.stringify({ chemicalId: concurrentChemicalId, quantity: 7, unit: 'L', reason: 'Concurrent A' })
     }),
     request('/api/inventory/issue', {
       method: 'POST',
-      body: JSON.stringify({ chemicalId, quantity: 7, unit: 'L', reason: 'Concurrent B' })
+      body: JSON.stringify({ chemicalId: concurrentChemicalId, quantity: 7, unit: 'L', reason: 'Concurrent B' })
     })
   ]);
 
   assert.deepEqual([a.response.status, b.response.status].sort(), [201, 409]);
 
-  const stock = await request(`/api/inventory/stock/${chemicalId}`);
+  const stock = await request(`/api/inventory/stock/${concurrentChemicalId}`);
   const concurrentBatch = stock.body.find(x => x.lotNumber === 'IT-LOT-CONCURRENT');
   assert.equal(concurrentBatch.availableQuantity, 3);
 });
