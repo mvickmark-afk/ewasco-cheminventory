@@ -37,3 +37,5 @@ jobs:
       - run: npm install
       - run: npm run migrate
       - run: npm test
+
+# Production hardening remains covered by the server test gate.
