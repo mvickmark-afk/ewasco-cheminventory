@@ -169,10 +169,10 @@ test('HTTP authentication and CSRF protection work through the real server', { s
         [recoveryUserId, recoveryOrganizationId, `recovery-\${recoveryOrganizationId.slice(0, 8)}`, passwordHash, 'Administrator']
       );
 
-      for (const record of backupBody.state.chemicals) {
+      for (const record of backupBody.state.records) {
         await pool.query(
           'INSERT INTO records(id,organization_id,entity,data,version,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7)',
-          [record.id, recoveryOrganizationId, 'chemicals', record, 1, new Date(), new Date()]
+          [record.id, recoveryOrganizationId, record.entity, Object.fromEntries(Object.entries(record).filter(([key]) => key !== 'id' && key !== 'entity')), 1, new Date(), new Date()]
         );
       }
 
@@ -196,7 +196,7 @@ test('HTTP authentication and CSRF protection work through the real server', { s
       const restoredBatches = await pool.query('SELECT id,chemical_id,lot_number,received_quantity,unit FROM inventory_batches WHERE organization_id=$1 ORDER BY id', [recoveryOrganizationId]);
       const restoredTransactions = await pool.query('SELECT id,transaction_type,chemical_id,batch_id,quantity,unit FROM inventory_transactions WHERE organization_id=$1 ORDER BY id', [recoveryOrganizationId]);
 
-      assert.equal(restoredRecords.rowCount, backupBody.state.chemicals.length);
+      assert.equal(restoredRecords.rowCount, backupBody.state.records.length);
       assert.equal(restoredBatches.rowCount, backupBody.state.inventory_batches.length);
       assert.equal(restoredTransactions.rowCount, backupBody.state.inventory_transactions.length);
       assert.deepEqual(restoredBatches.rows.map(x => ({...x, received_quantity: String(x.received_quantity)})), backupBody.state.inventory_batches.map(x => ({id:x.id,chemical_id:x.chemical_id,lot_number:x.lot_number,received_quantity:String(x.received_quantity),unit:x.unit})).sort((a,b)=>a.id.localeCompare(b.id)));
