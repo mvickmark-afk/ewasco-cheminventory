@@ -66,7 +66,7 @@ Supported transaction types are:
 - `ADJUSTMENT`
 - `DISPOSAL`
 
-Only the first two are implemented in the current increment. The remaining types are the next M1 work package.
+All six transaction types are implemented. `TRANSFER` currently supports whole-batch moves only; partial transfers are deliberately rejected because the batch model stores one location per batch.
 
 The transaction records:
 
@@ -134,7 +134,7 @@ The issue operation runs inside a database transaction and locks the candidate b
 
 This is intended to prevent two simultaneous users from consuming the same apparent stock.
 
-This still requires full PostgreSQL integration testing before production use.
+This is covered by the PostgreSQL integration suite in CI, including a concurrent-issue test against PostgreSQL 16.
 
 ## Expiry handling
 
@@ -197,33 +197,24 @@ This prevents the new inventory ledger from being omitted from organisation back
 
 ## Testing
 
-The FIFO allocation logic was separated into a testable function:
+The FIFO allocation logic is separated into a testable function:
 
 `allocateFifo(batches, requestedQuantity, getBalance)`
 
-Tests were added for:
+Unit tests cover oldest-batch-first allocation, multi-batch allocation, depleted batches and shortages.
 
-1. oldest-batch-first allocation;
-2. allocation across multiple batches;
-3. skipping depleted batches;
-4. reporting a shortage.
+PostgreSQL integration tests cover receiving, duplicate lots, FIFO issue, insufficient-stock rollback, organisation isolation, concurrent issue protection, returns, adjustments, disposal, whole-batch transfer, negative-stock prevention, expired-batch exclusion, transaction history and inventory RBAC.
 
-These are unit-level tests.
+GitHub Actions Run #23 for commit `f4b03c4c53d32cf1f6428b365d3d4c4086271a5d` completed successfully on 2026-09-27. PostgreSQL 16, migration and the complete `npm test` suite passed. Subsequent RBAC coverage commits extend the test suite and require a new CI run before this document is considered current.
 
-The repository does not currently provide a CI status for this branch, so these changes have not been represented as having a successful CI run.
+## Current branch state
 
-## Current commits
+The current branch head includes the M1 inventory engine, PostgreSQL integration coverage and the corrected batch-based RBAC mapping. Recent verification commits are:
 
-The M1 work was implemented through these branch commits:
-
-- `21f212d` — inventory batch and transaction database schema
-- `7356bed` — receiving/FIFO inventory engine
-- `ab601ef` — inventory route registration
-- `3ff577f` — expiry-aware FIFO and batch capacity correction
-- `47295a2` — isolated FIFO allocation logic
-- `6d5f001` — FIFO unit tests
-- `39c9eb3` — inventory ledger added to backups
-- `4b75d44` — transaction history endpoint and access control
+- `54de0e4e88b1578484f7ba98a33eccdfa8222714` — align inventory mutations with batch permissions
+- `f4b03c4c53d32cf1f6428b365d3d4c4086271a5d` — expand inventory RBAC integration coverage
+- `60a222ef9356250e0e25dff57454048ffd38da93` — add complete inventory RBAC unit coverage
+- `6673230dcc75e153ad22119ac61dcf84b13cfdaf` — verify Storekeeper inventory workflow permissions
 
 Earlier M0 architecture work also added:
 
@@ -252,29 +243,19 @@ These are next-stage requirements, not silently assumed to be complete.
 
 The immediate next implementation is:
 
-### 1. RETURN — implemented
+### Remaining M1/M2 verification
 
-Return unused material to an existing batch while preserving the transaction history.
+The transaction engine itself is implemented and has PostgreSQL CI coverage. Remaining hardening work is outside the core ledger implementation:
 
-### 2. TRANSFER — implemented for whole batches
+1. Test the real HTTP authentication/session/CSRF layer rather than only the inventory route harness.
+2. Add backup/restore verification rather than only backup export coverage.
+3. Add audit-log integrity and organisation-isolation tests at the full API layer.
+4. Verify migration upgrade behaviour from representative existing database states.
+5. Define and enforce unit-conversion rules if cross-unit operations are required.
 
-Move a complete batch between locations without changing total organisational stock. Partial-batch transfer is intentionally rejected until location-level stock is modelled explicitly.
+### Workflow UI
 
-### 3. ADJUSTMENT — implemented
-
-Provide an authorised correction mechanism that creates an adjustment transaction rather than editing historical transactions. A reason is mandatory and decreases cannot create negative stock.
-
-### 4. DISPOSAL — implemented
-
-Remove stock through a traceable disposal transaction with mandatory reason and actor.
-
-### 5. Integration tests
-
-Test receiving, issuing, insufficient stock, expiry, organisation isolation, concurrent issue and transaction rollback against PostgreSQL.
-
-### 6. Workflow UI
-
-Only after the transaction engine is sufficiently verified should the generic JSON editor be replaced by:
+The generic JSON editor should be replaced by:
 
 - Receive Stock
 - Stock by Chemical
@@ -297,7 +278,9 @@ The system should preserve that traceability even when the interface becomes sim
 
 M1 transaction workflows implemented: RECEIVE, ISSUE, RETURN, TRANSFER (whole batch), ADJUSTMENT and DISPOSAL.
 
-M1 complete: NOT YET — integration/concurrency testing and workflow UI remain.
+PostgreSQL integration and concurrency coverage: implemented and passing in CI as of Run #23 for the earlier RBAC commit; the two newer RBAC coverage commits require their own CI completion.
+
+M1 backend implementation: substantially complete, with final security/backup/migration verification still outstanding.
 
 Production-ready inventory engine: NOT YET.
 
