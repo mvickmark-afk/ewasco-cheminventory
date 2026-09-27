@@ -138,9 +138,27 @@ test('HTTP authentication and CSRF protection work through the real server', { s
     assert.equal(validateRecovery.status, 200);
     assert.equal((await validateRecovery.json()).valid, true);
 
+    const restoreResponse = await fetch(server.baseUrl + '/api/backup/restore', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie: cookies, 'X-CSRF-Token': csrfToken },
+      body: JSON.stringify({ ...backupBody, targetOrganizationName: 'Recovery API Test ' + crypto.randomUUID() })
+    });
+    assert.equal(restoreResponse.status, 201);
+    const restoreBody = await restoreResponse.json();
+    assert.equal(restoreBody.restored, true);
+    assert.deepEqual(restoreBody.counts, backupBody.counts);
+    const apiRestored = await pool.query('SELECT count(*)::int AS count FROM records WHERE organization_id=$1', [restoreBody.organizationId]);
+    const apiBatches = await pool.query('SELECT count(*)::int AS count FROM inventory_batches WHERE organization_id=$1', [restoreBody.organizationId]);
+    const apiTransactions = await pool.query('SELECT count(*)::int AS count FROM inventory_transactions WHERE organization_id=$1', [restoreBody.organizationId]);
+    assert.equal(apiRestored.rows[0].count, backupBody.state.records.length);
+    assert.equal(apiBatches.rows[0].count, backupBody.state.inventory_batches.length);
+    assert.equal(apiTransactions.rows[0].count, backupBody.state.inventory_transactions.length);
+    apiRestoreOrganizationId = restoreBody.organizationId;
+
     // Recovery verification: restore the exported domain state into a fresh
     // organisation and verify that records, batches and the transaction ledger
     // survive the round trip without changing quantities or relationships.
+    let apiRestoreOrganizationId;
     const recoveryOrganizationId = crypto.randomUUID();
     const recoveryUserId = crypto.randomUUID();
     try {
@@ -191,6 +209,7 @@ test('HTTP authentication and CSRF protection work through the real server', { s
   } finally {
     server?.child.kill('SIGTERM');
     await new Promise(resolve => setTimeout(resolve, 150));
+    if (apiRestoreOrganizationId) await pool.query('DELETE FROM organizations WHERE id=$1', [apiRestoreOrganizationId]);
     await pool.query('DELETE FROM organizations WHERE id=$1', [organizationId]);
   }
 });
