@@ -105,6 +105,15 @@ test('HTTP authentication and CSRF protection work through the real server', { s
       body: JSON.stringify({ id: chemicalId, name: 'HTTP Security Test Chemical', unit: 'L' })
     });
     assert.equal(withCsrf.status, 201);
+
+    const backup = await fetch(`${server.baseUrl}/api/backup`, { headers: { cookie: cookies } });
+    assert.equal(backup.status, 200);
+    const backupBody = await backup.json();
+    assert.equal(backupBody.app, 'laboratory-inventory');
+    assert.ok(Array.isArray(backupBody.state.chemicals));
+    assert.ok(backupBody.state.chemicals.some(x => x.id === chemicalId));
+    assert.ok(Array.isArray(backupBody.state.inventory_batches));
+    assert.ok(Array.isArray(backupBody.state.inventory_transactions));
   } finally {
     server?.child.kill('SIGTERM');
     await new Promise(resolve => setTimeout(resolve, 150));
