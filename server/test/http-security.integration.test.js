@@ -176,19 +176,24 @@ test('HTTP authentication and CSRF protection work through the real server', { s
         );
       }
 
+      const recoveryBatchIds = new Map();
       for (const batch of backupBody.state.inventory_batches) {
+        const newBatchId = crypto.randomUUID();
+        recoveryBatchIds.set(batch.id, newBatchId);
         await pool.query(
           `INSERT INTO inventory_batches(id,organization_id,chemical_id,lot_number,received_at,expiry_date,unit,received_quantity,location,max_quantity,metadata,created_by,created_at)
            VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
-          [batch.id, recoveryOrganizationId, batch.chemical_id, batch.lot_number, batch.received_at, batch.expiry_date, batch.unit, batch.received_quantity, batch.location, batch.max_quantity, batch.metadata ?? {}, recoveryUserId, batch.created_at]
+          [newBatchId, recoveryOrganizationId, batch.chemical_id, batch.lot_number, batch.received_at, batch.expiry_date, batch.unit, batch.received_quantity, batch.location, batch.max_quantity, batch.metadata ?? {}, recoveryUserId, batch.created_at]
         );
       }
 
       for (const tx of backupBody.state.inventory_transactions) {
+        const newBatchId = tx.batch_id ? recoveryBatchIds.get(tx.batch_id) : null;
+        assert.ok(!tx.batch_id || newBatchId, `Recovery transaction references missing batch: ${tx.batch_id}`);
         await pool.query(
           `INSERT INTO inventory_transactions(id,organization_id,transaction_type,chemical_id,batch_id,quantity,unit,reference,reason,actor_id,created_at,metadata)
            VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
-          [tx.id, recoveryOrganizationId, tx.transaction_type, tx.chemical_id, tx.batch_id, tx.quantity, tx.unit, tx.reference, tx.reason, recoveryUserId, tx.created_at, tx.metadata ?? {}]
+          [crypto.randomUUID(), recoveryOrganizationId, tx.transaction_type, tx.chemical_id, newBatchId, tx.quantity, tx.unit, tx.reference, tx.reason, recoveryUserId, tx.created_at, tx.metadata ?? {}]
         );
       }
 
@@ -199,8 +204,14 @@ test('HTTP authentication and CSRF protection work through the real server', { s
       assert.equal(restoredRecords.rowCount, backupBody.state.records.length);
       assert.equal(restoredBatches.rowCount, backupBody.state.inventory_batches.length);
       assert.equal(restoredTransactions.rowCount, backupBody.state.inventory_transactions.length);
-      assert.deepEqual(restoredBatches.rows.map(x => ({...x, received_quantity: String(x.received_quantity)})), backupBody.state.inventory_batches.map(x => ({id:x.id,chemical_id:x.chemical_id,lot_number:x.lot_number,received_quantity:String(x.received_quantity),unit:x.unit})).sort((a,b)=>a.id.localeCompare(b.id)));
-      assert.deepEqual(restoredTransactions.rows.map(x => ({...x, quantity: String(x.quantity)})), backupBody.state.inventory_transactions.map(x => ({id:x.id,transaction_type:x.transaction_type,chemical_id:x.chemical_id,batch_id:x.batch_id,quantity:String(x.quantity),unit:x.unit})).sort((a,b)=>a.id.localeCompare(b.id)));
+      assert.deepEqual(
+        restoredBatches.rows.map(x => ({chemical_id:x.chemical_id,lot_number:x.lot_number,received_quantity:String(x.received_quantity),unit:x.unit})).sort((a,b)=>a.lot_number.localeCompare(b.lot_number)),
+        backupBody.state.inventory_batches.map(x => ({chemical_id:x.chemical_id,lot_number:x.lot_number,received_quantity:String(x.received_quantity),unit:x.unit})).sort((a,b)=>a.lot_number.localeCompare(b.lot_number))
+      );
+      assert.deepEqual(
+        restoredTransactions.rows.map(x => ({transaction_type:x.transaction_type,chemical_id:x.chemical_id,quantity:String(x.quantity),unit:x.unit})).sort((a,b)=>a.transaction_type.localeCompare(b.transaction_type)||a.chemical_id.localeCompare(b.chemical_id)),
+        backupBody.state.inventory_transactions.map(x => ({transaction_type:x.transaction_type,chemical_id:x.chemical_id,quantity:String(x.quantity),unit:x.unit})).sort((a,b)=>a.transaction_type.localeCompare(b.transaction_type)||a.chemical_id.localeCompare(b.chemical_id))
+      );
       await pool.query('ROLLBACK');
     } catch (error) {
       await pool.query('ROLLBACK');
