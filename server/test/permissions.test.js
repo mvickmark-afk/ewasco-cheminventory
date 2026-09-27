@@ -2,6 +2,21 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { can, feature, validate } from '../src/permissions.js';
 
+test('inventory role matrix', () => {
+  for (const action of ['create', 'update']) {
+    assert.equal(can('Administrator', action, 'batches'), true);
+    assert.equal(can('Laboratory Manager', action, 'batches'), true);
+  }
+  assert.equal(can('Storekeeper', 'create', 'batches'), true);
+  assert.equal(can('Storekeeper', 'update', 'batches'), true);
+  assert.equal(can('Storekeeper', 'read', 'batches'), true);
+  assert.equal(can('Storekeeper', 'delete', 'batches'), false);
+  assert.equal(can('Analyst/Chemist', 'read', 'batches'), true);
+  assert.equal(can('Analyst/Chemist', 'create', 'batches'), false);
+  assert.equal(can('Analyst/Chemist', 'update', 'batches'), false);
+  assert.equal(can('Analyst/Chemist', 'delete', 'batches'), false);
+});
+
 test('least privilege and feature permissions', () => {
   assert.equal(can('Storekeeper', 'delete', 'chemicals'), false);
   assert.equal(feature('Administrator', 'backup'), true);
