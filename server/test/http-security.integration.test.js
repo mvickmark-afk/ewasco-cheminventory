@@ -106,6 +106,21 @@ test('HTTP authentication and CSRF protection work through the real server', { s
     });
     assert.equal(withCsrf.status, 201);
 
+    const receive = await fetch(\`${server.baseUrl}/api/inventory/receive\`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie: cookies, 'X-CSRF-Token': csrfToken },
+      body: JSON.stringify({ chemicalId, lotNumber: \`RECOVERY-\${organizationId.slice(0, 8)}\`, quantity: 5, unit: 'L', location: 'Recovery Test Store', reference: 'recovery-verification' })
+    });
+    assert.equal(receive.status, 201);
+    const receiveBody = await receive.json();
+
+    const issue = await fetch(\`${server.baseUrl}/api/inventory/issue\`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie: cookies, 'X-CSRF-Token': csrfToken },
+      body: JSON.stringify({ chemicalId, quantity: 2, unit: 'L', reference: 'recovery-verification-issue' })
+    });
+    assert.equal(issue.status, 201);
+
     const backup = await fetch(`${server.baseUrl}/api/backup`, { headers: { cookie: cookies } });
     assert.equal(backup.status, 200);
     const backupBody = await backup.json();
