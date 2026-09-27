@@ -69,8 +69,8 @@ export function registerInventoryRoutes({ app, pool, auth, audit }) {
       }
       const b = await c.query(
         `INSERT INTO inventory_batches
-        (organization_id,chemical_id,lot_number,expiry_date,unit,received_quantity,location,metadata,created_by)
-        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)
+        (organization_id,chemical_id,lot_number,expiry_date,unit,received_quantity,location,max_quantity,metadata,created_by)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$6,$8,$9)
         RETURNING id,chemical_id,lot_number,received_at,expiry_date,unit,received_quantity,location`,
         [req.user.organization_id,input.chemicalId,input.lotNumber,input.expiryDate||null,input.unit,input.quantity,input.location||null,
          JSON.stringify({supplier:input.supplier||null,reference:input.reference||null}),req.user.id]
@@ -108,6 +108,7 @@ export function registerInventoryRoutes({ app, pool, auth, audit }) {
         `SELECT id,lot_number,received_at,expiry_date,unit
          FROM inventory_batches
          WHERE organization_id=$1 AND chemical_id=$2 AND unit=$3
+           AND (expiry_date IS NULL OR expiry_date >= CURRENT_DATE)
          ORDER BY received_at ASC, id ASC
          FOR UPDATE`,
         [req.user.organization_id,input.chemicalId,input.unit]
