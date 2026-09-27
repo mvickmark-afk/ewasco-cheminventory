@@ -106,15 +106,15 @@ test('HTTP authentication and CSRF protection work through the real server', { s
     });
     assert.equal(withCsrf.status, 201);
 
-    const receive = await fetch(\`${server.baseUrl}/api/inventory/receive\`, {
+    const receive = await fetch(`${server.baseUrl}/api/inventory/receive`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', cookie: cookies, 'X-CSRF-Token': csrfToken },
-      body: JSON.stringify({ chemicalId, lotNumber: \`RECOVERY-\${organizationId.slice(0, 8)}\`, quantity: 5, unit: 'L', location: 'Recovery Test Store', reference: 'recovery-verification' })
+      body: JSON.stringify({ chemicalId, lotNumber: `RECOVERY-\${organizationId.slice(0, 8)}`, quantity: 5, unit: 'L', location: 'Recovery Test Store', reference: 'recovery-verification' })
     });
     assert.equal(receive.status, 201);
     const receiveBody = await receive.json();
 
-    const issue = await fetch(\`${server.baseUrl}/api/inventory/issue\`, {
+    const issue = await fetch(`${server.baseUrl}/api/inventory/issue`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', cookie: cookies, 'X-CSRF-Token': csrfToken },
       body: JSON.stringify({ chemicalId, quantity: 2, unit: 'L', reference: 'recovery-verification-issue' })
@@ -137,10 +137,10 @@ test('HTTP authentication and CSRF protection work through the real server', { s
     const recoveryUserId = crypto.randomUUID();
     try {
       await pool.query('BEGIN');
-      await pool.query('INSERT INTO organizations(id,name) VALUES($1,$2)', [recoveryOrganizationId, \`Recovery Test Organisation \${recoveryOrganizationId.slice(0, 8)}\`]);
+      await pool.query('INSERT INTO organizations(id,name) VALUES($1,$2)', [recoveryOrganizationId, `Recovery Test Organisation \${recoveryOrganizationId.slice(0, 8)}`]);
       await pool.query(
         'INSERT INTO users(id,organization_id,username,password_hash,role) VALUES($1,$2,$3,$4,$5)',
-        [recoveryUserId, recoveryOrganizationId, \`recovery-\${recoveryOrganizationId.slice(0, 8)}\`, passwordHash, 'Administrator']
+        [recoveryUserId, recoveryOrganizationId, `recovery-\${recoveryOrganizationId.slice(0, 8)}`, passwordHash, 'Administrator']
       );
 
       for (const record of backupBody.state.chemicals) {
@@ -152,16 +152,16 @@ test('HTTP authentication and CSRF protection work through the real server', { s
 
       for (const batch of backupBody.state.inventory_batches) {
         await pool.query(
-          \`INSERT INTO inventory_batches(id,organization_id,chemical_id,lot_number,received_at,expiry_date,unit,received_quantity,location,max_quantity,metadata,created_by,created_at)
-           VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)\`,
+          `INSERT INTO inventory_batches(id,organization_id,chemical_id,lot_number,received_at,expiry_date,unit,received_quantity,location,max_quantity,metadata,created_by,created_at)
+           VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
           [batch.id, recoveryOrganizationId, batch.chemical_id, batch.lot_number, batch.received_at, batch.expiry_date, batch.unit, batch.received_quantity, batch.location, batch.max_quantity, batch.metadata ?? {}, recoveryUserId, batch.created_at]
         );
       }
 
       for (const tx of backupBody.state.inventory_transactions) {
         await pool.query(
-          \`INSERT INTO inventory_transactions(id,organization_id,transaction_type,chemical_id,batch_id,quantity,unit,reference,reason,actor_id,created_at,metadata)
-           VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)\`,
+          `INSERT INTO inventory_transactions(id,organization_id,transaction_type,chemical_id,batch_id,quantity,unit,reference,reason,actor_id,created_at,metadata)
+           VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
           [tx.id, recoveryOrganizationId, tx.transaction_type, tx.chemical_id, tx.batch_id, tx.quantity, tx.unit, tx.reference, tx.reason, recoveryUserId, tx.created_at, tx.metadata ?? {}]
         );
       }
