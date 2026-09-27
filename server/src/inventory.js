@@ -240,7 +240,7 @@ export function registerInventoryRoutes({ app, pool, auth, audit }) {
       await c.query('BEGIN');
       const b=await c.query('SELECT id,chemical_id,unit,location FROM inventory_batches WHERE organization_id=$1 AND id=$2 FOR UPDATE',[req.user.organization_id,input.batchId]);
       if(!b.rowCount||b.rows[0].chemical_id!==input.chemicalId||b.rows[0].unit!==input.unit){await c.query('ROLLBACK');return res.status(404).json({error:'Batch not found or does not match chemical/unit'});}
-      if(await batchBalance(c,req.user.organization_id,input.batchId)<input.quantity){await c.query('ROLLBACK');return res.status(409).json({error:'Insufficient stock for transfer'});}
+      const transferBalance=await batchBalance(c,req.user.organization_id,input.batchId); if(transferBalance<input.quantity){await c.query('ROLLBACK');return res.status(409).json({error:'Insufficient stock for transfer'});} if(transferBalance!==input.quantity){await c.query('ROLLBACK');return res.status(409).json({error:'Partial batch transfer is not supported yet; transfer the full available batch'});}
       const tx=await c.query(`INSERT INTO inventory_transactions (organization_id,transaction_type,chemical_id,batch_id,quantity,unit,reference,reason,actor_id,metadata) VALUES($1,'TRANSFER',$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
         [req.user.organization_id,input.chemicalId,input.batchId,input.quantity,input.unit,input.reference||null,input.reason||'Location transfer',req.user.id,JSON.stringify({fromLocation:b.rows[0].location||null,toLocation:input.toLocation})]);
       await c.query('UPDATE inventory_batches SET location=$1 WHERE organization_id=$2 AND id=$3',[input.toLocation,req.user.organization_id,input.batchId]);
