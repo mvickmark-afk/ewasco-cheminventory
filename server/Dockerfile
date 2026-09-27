@@ -1,10 +1,12 @@
-FROM node:22-alpine
+FROM node:22-bookworm-slim
 WORKDIR /app
+ENV NODE_ENV=production
 COPY package*.json ./
-RUN npm ci --omit=dev
-COPY . .
-RUN chmod +x docker-entrypoint.sh && mkdir -p uploads
+RUN npm ci --omit=dev && npm cache clean --force
+COPY src ./src
+COPY sql ./sql
+COPY public ./public
+RUN mkdir -p /app/uploads && chown -R node:node /app
 USER node
 EXPOSE 3000
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 CMD wget -qO- http://127.0.0.1:3000/readyz || exit 1
-ENTRYPOINT ["./docker-entrypoint.sh"]
+CMD ["sh","-c","node src/migrate.js && node src/server.js"]
