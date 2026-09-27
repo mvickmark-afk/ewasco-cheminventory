@@ -163,6 +163,7 @@ export function registerInventoryRoutes({ app, pool, auth, audit }) {
   });
 
   app.get('/api/inventory/stock/:chemicalId', auth, async (req,res,next) => {
+    if (!can(req.user.role,'read','batches')) return res.status(403).json({error:'Forbidden'});
     try {
       const q = await pool.query(
         `SELECT b.id AS "batchId",b.chemical_id AS "chemicalId",b.lot_number AS "lotNumber",
@@ -178,6 +179,21 @@ export function registerInventoryRoutes({ app, pool, auth, audit }) {
         [req.user.organization_id,req.params.chemicalId]
       );
       res.json(q.rows.map(x=>({...x,receivedQuantity:Number(x.receivedQuantity),availableQuantity:Number(x.availableQuantity)})));
+    } catch(e) { next(e); }
+  });
+  app.get('/api/inventory/transactions/:chemicalId', auth, async (req,res,next) => {
+    if (!can(req.user.role,'read','batches')) return res.status(403).json({error:'Forbidden'});
+    try {
+      const q = await pool.query(
+        `SELECT id,transaction_type AS "transactionType",chemical_id AS "chemicalId",batch_id AS "batchId",
+                quantity,unit,reference,reason,actor_id AS "actorId",created_at AS "createdAt",metadata
+         FROM inventory_transactions
+         WHERE organization_id=$1 AND chemical_id=$2
+         ORDER BY created_at DESC
+         LIMIT 500`,
+        [req.user.organization_id,req.params.chemicalId]
+      );
+      res.json(q.rows.map(x=>({...x,quantity:Number(x.quantity)})));
     } catch(e) { next(e); }
   });
 }
