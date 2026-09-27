@@ -22,6 +22,20 @@ const issueSchema = z.object({
   reason: z.string().trim().max(500).optional()
 });
 
+export async function allocateFifo(batches, requestedQuantity, getBalance) {
+  let remaining = Number(requestedQuantity);
+  const allocations = [];
+  for (const batch of batches) {
+    if (remaining <= 0) break;
+    const available = Number(await getBalance(batch.id));
+    if (available <= 0) continue;
+    const take = Math.min(available, remaining);
+    allocations.push({batchId:batch.id,lotNumber:batch.lot_number,quantity:take,unit:batch.unit});
+    remaining -= take;
+  }
+  return {allocations,remaining};
+}
+
 function allowed(role, action) {
   return can(role, action, action === 'create' ? 'batches' : 'consumption');
 }
@@ -114,22 +128,17 @@ export function registerInventoryRoutes({ app, pool, auth, audit }) {
         [req.user.organization_id,input.chemicalId,input.unit]
       );
 
-      let remaining = input.quantity;
-      const allocations = [];
-      for (const batch of batches.rows) {
-        if (remaining <= 0) break;
-        const available = await batchBalance(c,req.user.organization_id,batch.id);
-        if (available <= 0) continue;
-        const take = Math.min(available,remaining);
+      const allocation = await allocateFifo(batches.rows,input.quantity,batchId => batchBalance(c,req.user.organization_id,batchId));
+      const allocations = allocation.allocations;
+      const remaining = allocation.remaining;
+      for (const item of allocations) {
         await c.query(
           `INSERT INTO inventory_transactions
            (organization_id,transaction_type,chemical_id,batch_id,quantity,unit,reference,reason,actor_id,metadata)
            VALUES($1,'ISSUE',$2,$3,$4,$5,$6,$7,$8,$9)`,
-          [req.user.organization_id,input.chemicalId,batch.id,take,input.unit,input.reference||null,input.reason||'Consumption/issue',req.user.id,
+          [req.user.organization_id,input.chemicalId,item.batchId,item.quantity,input.unit,input.reference||null,input.reason||'Consumption/issue',req.user.id,
            JSON.stringify({fifo:true})]
         );
-        allocations.push({batchId:batch.id,lotNumber:batch.lot_number,quantity:take,unit:batch.unit});
-        remaining -= take;
       }
 
       if (remaining > 0) {
