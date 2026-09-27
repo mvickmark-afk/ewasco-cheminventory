@@ -313,6 +313,41 @@ test('RBAC permits batch inventory mutations for Storekeeper and blocks Analyst/
   });
   assert.equal(issue.response.status, 201);
 
+  const returned = await request('/api/inventory/return', {
+    method: 'POST',
+    body: JSON.stringify({ chemicalId: workflowChemicalId, batchId: storeBatchId, quantity: 1, unit: 'L', reason: 'Storekeeper return test' })
+  });
+  assert.equal(returned.response.status, 201);
+
+  const increased = await request('/api/inventory/adjust', {
+    method: 'POST',
+    body: JSON.stringify({ chemicalId: workflowChemicalId, batchId: storeBatchId, quantity: 1, unit: 'L', direction: 'INCREASE', reason: 'Storekeeper adjustment test' })
+  });
+  assert.equal(increased.response.status, 201);
+
+  const decreased = await request('/api/inventory/adjust', {
+    method: 'POST',
+    body: JSON.stringify({ chemicalId: workflowChemicalId, batchId: storeBatchId, quantity: 1, unit: 'L', direction: 'DECREASE', reason: 'Storekeeper correction test' })
+  });
+  assert.equal(decreased.response.status, 201);
+
+  const disposed = await request('/api/inventory/dispose', {
+    method: 'POST',
+    body: JSON.stringify({ chemicalId: workflowChemicalId, batchId: storeBatchId, quantity: 1, unit: 'L', reason: 'Storekeeper disposal test' })
+  });
+  assert.equal(disposed.response.status, 201);
+
+  const transferred = await request('/api/inventory/transfer', {
+    method: 'POST',
+    body: JSON.stringify({ chemicalId: workflowChemicalId, batchId: storeBatchId, quantity: 8, unit: 'L', toLocation: 'Storekeeper Cabinet' })
+  });
+  assert.equal(transferred.response.status, 201);
+
+  const storeStock = await request(`/api/inventory/stock/${workflowChemicalId}`);
+  const storeBatch = storeStock.body.find(x => x.batchId === storeBatchId);
+  assert.equal(storeBatch.availableQuantity, 8);
+  assert.equal(storeBatch.location, 'Storekeeper Cabinet');
+
   activeUser = { id: userId, organization_id: organisationId, username: 'analyst', role: 'Analyst/Chemist' };
 
   const analystReceive = await request('/api/inventory/receive', {
