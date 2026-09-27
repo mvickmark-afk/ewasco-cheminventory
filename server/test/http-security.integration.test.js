@@ -114,6 +114,57 @@ test('HTTP authentication and CSRF protection work through the real server', { s
     assert.ok(backupBody.state.chemicals.some(x => x.id === chemicalId));
     assert.ok(Array.isArray(backupBody.state.inventory_batches));
     assert.ok(Array.isArray(backupBody.state.inventory_transactions));
+
+    // Recovery verification: restore the exported domain state into a fresh
+    // organisation and verify that records, batches and the transaction ledger
+    // survive the round trip without changing quantities or relationships.
+    const recoveryOrganizationId = crypto.randomUUID();
+    const recoveryUserId = crypto.randomUUID();
+    try {
+      await pool.query('BEGIN');
+      await pool.query('INSERT INTO organizations(id,name) VALUES($1,$2)', [recoveryOrganizationId, \`Recovery Test Organisation \${recoveryOrganizationId.slice(0, 8)}\`]);
+      await pool.query(
+        'INSERT INTO users(id,organization_id,username,password_hash,role) VALUES($1,$2,$3,$4,$5)',
+        [recoveryUserId, recoveryOrganizationId, \`recovery-\${recoveryOrganizationId.slice(0, 8)}\`, passwordHash, 'Administrator']
+      );
+
+      for (const record of backupBody.state.chemicals) {
+        await pool.query(
+          'INSERT INTO records(id,organization_id,entity,data,version,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7)',
+          [record.id, recoveryOrganizationId, 'chemicals', record, 1, new Date(), new Date()]
+        );
+      }
+
+      for (const batch of backupBody.state.inventory_batches) {
+        await pool.query(
+          \`INSERT INTO inventory_batches(id,organization_id,chemical_id,lot_number,received_at,expiry_date,unit,received_quantity,location,max_quantity,metadata,created_by,created_at)
+           VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)\`,
+          [batch.id, recoveryOrganizationId, batch.chemical_id, batch.lot_number, batch.received_at, batch.expiry_date, batch.unit, batch.received_quantity, batch.location, batch.max_quantity, batch.metadata ?? {}, recoveryUserId, batch.created_at]
+        );
+      }
+
+      for (const tx of backupBody.state.inventory_transactions) {
+        await pool.query(
+          \`INSERT INTO inventory_transactions(id,organization_id,transaction_type,chemical_id,batch_id,quantity,unit,reference,reason,actor_id,created_at,metadata)
+           VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)\`,
+          [tx.id, recoveryOrganizationId, tx.transaction_type, tx.chemical_id, tx.batch_id, tx.quantity, tx.unit, tx.reference, tx.reason, recoveryUserId, tx.created_at, tx.metadata ?? {}]
+        );
+      }
+
+      const restoredRecords = await pool.query('SELECT id,data FROM records WHERE organization_id=$1 AND entity=\\'chemicals\\' ORDER BY id', [recoveryOrganizationId]);
+      const restoredBatches = await pool.query('SELECT id,chemical_id,lot_number,received_quantity,unit FROM inventory_batches WHERE organization_id=$1 ORDER BY id', [recoveryOrganizationId]);
+      const restoredTransactions = await pool.query('SELECT id,transaction_type,chemical_id,batch_id,quantity,unit FROM inventory_transactions WHERE organization_id=$1 ORDER BY id', [recoveryOrganizationId]);
+
+      assert.equal(restoredRecords.rowCount, backupBody.state.chemicals.length);
+      assert.equal(restoredBatches.rowCount, backupBody.state.inventory_batches.length);
+      assert.equal(restoredTransactions.rowCount, backupBody.state.inventory_transactions.length);
+      assert.deepEqual(restoredBatches.rows.map(x => ({...x, received_quantity: String(x.received_quantity)})), backupBody.state.inventory_batches.map(x => ({id:x.id,chemical_id:x.chemical_id,lot_number:x.lot_number,received_quantity:String(x.received_quantity),unit:x.unit})).sort((a,b)=>a.id.localeCompare(b.id)));
+      assert.deepEqual(restoredTransactions.rows.map(x => ({...x, quantity: String(x.quantity)})), backupBody.state.inventory_transactions.map(x => ({id:x.id,transaction_type:x.transaction_type,chemical_id:x.chemical_id,batch_id:x.batch_id,quantity:String(x.quantity),unit:x.unit})).sort((a,b)=>a.id.localeCompare(b.id)));
+      await pool.query('ROLLBACK');
+    } catch (error) {
+      await pool.query('ROLLBACK');
+      throw error;
+    }
   } finally {
     server?.child.kill('SIGTERM');
     await new Promise(resolve => setTimeout(resolve, 150));
