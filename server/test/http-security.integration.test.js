@@ -75,19 +75,16 @@ test('HTTP authentication and CSRF protection work through the real server', { s
     server = await startServer();
 
     let cookies = '';
-    const csrfResponse = await fetch(`${server.baseUrl}/api/auth/csrf`);
-    assert.equal(csrfResponse.status, 200);
-    cookies = mergeCookies(cookies, csrfResponse.headers.getSetCookie());
-    const csrfBody = await csrfResponse.json();
-    assert.ok(csrfBody.token);
-
     const loginResponse = await fetch(`${server.baseUrl}/api/auth/login`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ username, password })
     });
     assert.equal(loginResponse.status, 200);
-    cookies = mergeCookies(cookies, loginResponse.headers.getSetCookie());
+    const loginSetCookies = loginResponse.headers.getSetCookie();
+    cookies = mergeCookies(cookies, loginSetCookies);
+    const csrfToken = cookieValue(loginSetCookies, 'ewasco_csrf');
+    assert.ok(csrfToken);
     const loginBody = await loginResponse.json();
     assert.equal(loginBody.user.organizationName, `HTTP Test Organisation ${organizationId.slice(0, 8)}`);
 
@@ -104,7 +101,7 @@ test('HTTP authentication and CSRF protection work through the real server', { s
 
     const withCsrf = await fetch(`${server.baseUrl}/api/records/chemicals`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', cookie: cookies, 'X-CSRF-Token': csrfBody.token },
+      headers: { 'content-type': 'application/json', cookie: cookies, 'X-CSRF-Token': csrfToken },
       body: JSON.stringify({ id: chemicalId, name: 'HTTP Security Test Chemical', unit: 'L' })
     });
     assert.equal(withCsrf.status, 201);
