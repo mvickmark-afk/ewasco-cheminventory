@@ -7,6 +7,7 @@ export function buildBackup({ organizationId, records, inventoryBatches, invento
   const state = { records, inventory_batches: inventoryBatches, inventory_transactions: inventoryTransactions };
   const counts = Object.fromEntries(Object.entries(state).map(([k, v]) => [k, v.length]));
   return {
+    app: 'laboratory-inventory',
     format: 'laboratory-inventory-backup',
     version: BACKUP_VERSION,
     exported: new Date().toISOString(),
@@ -18,7 +19,7 @@ export function buildBackup({ organizationId, records, inventoryBatches, invento
 }
 
 export function validateBackup(input) {
-  if (!input || input.format !== 'laboratory-inventory-backup' || input.version !== BACKUP_VERSION) throw new Error('Unsupported backup format or version');
+  if (!input || input.app !== 'laboratory-inventory' || input.format !== 'laboratory-inventory-backup' || input.version !== BACKUP_VERSION) throw new Error('Unsupported backup format or version');
   if (!input.organizationId || !input.state || !input.manifest || input.manifest.algorithm !== 'sha256') throw new Error('Invalid backup manifest');
   for (const key of ['records', 'inventory_batches', 'inventory_transactions']) {
     if (!Array.isArray(input.state[key])) throw new Error(`Invalid backup state: ${key}`);
