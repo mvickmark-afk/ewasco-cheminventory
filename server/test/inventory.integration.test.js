@@ -230,7 +230,7 @@ test('return, adjustment, disposal and transfer preserve stock and transaction h
 
   const transferred = await request('/api/inventory/transfer', {
     method: 'POST',
-    body: JSON.stringify({ chemicalId: workflowChemicalId, batchId, quantity: 10, unit: 'L', toLocation: 'Cabinet B', reason: 'Relocation' })
+    body: JSON.stringify({ chemicalId: workflowChemicalId, batchId, quantity: 9, unit: 'L', toLocation: 'Cabinet B', reason: 'Partial relocation' })
   });
   assert.equal(transferred.response.status, 409);
 
