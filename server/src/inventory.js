@@ -37,7 +37,10 @@ export async function allocateFifo(batches, requestedQuantity, getBalance) {
 }
 
 function allowed(role, action) {
-  return can(role, action, action === 'create' ? 'batches' : 'consumption');
+  // All inventory mutations are governed by the batch permission set.
+  // This keeps receive/issue/return and batch-level corrections aligned
+  // with the existing RBAC model instead of implicitly using consumption.
+  return can(role, action, 'batches');
 }
 
 async function chemicalExists(client, user, chemicalId) {
