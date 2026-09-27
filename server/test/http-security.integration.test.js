@@ -112,4 +112,4 @@ test('HTTP authentication and CSRF protection work through the real server', { s
   }
 });
 
-t.after(async () => { if (pool) await pool.end(); });
+test.after(async () => { if (pool) await pool.end(); });
