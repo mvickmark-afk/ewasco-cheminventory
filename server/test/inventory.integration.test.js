@@ -362,3 +362,36 @@ test('RBAC permits batch inventory mutations for Storekeeper and blocks Analyst/
 
   activeUser = { id: userId, organization_id: organisationId, username: 'integration', role: 'Administrator' };
 });
+
+
+test('database invariants: ledger quantities, tenant ownership and batch uniqueness remain consistent', { skip: !shouldRun }, async () => {
+  const negative = await pool.query(`
+    SELECT b.id
+    FROM inventory_batches b
+    LEFT JOIN inventory_transactions t ON t.batch_id=b.id AND t.organization_id=b.organization_id
+    GROUP BY b.id
+    HAVING b.received_quantity <= 0
+       OR COALESCE(SUM(CASE
+            WHEN t.transaction_type IN ('RECEIVE','RETURN') THEN t.quantity
+            WHEN t.transaction_type IN ('ISSUE','DISPOSAL') THEN -t.quantity
+            WHEN t.transaction_type = 'ADJUSTMENT' AND COALESCE(t.metadata->>'direction','') = 'INCREASE' THEN t.quantity
+            WHEN t.transaction_type = 'ADJUSTMENT' AND COALESCE(t.metadata->>'direction','') = 'DECREASE' THEN -t.quantity
+            ELSE 0 END), 0) < 0
+  `);
+  assert.equal(negative.rowCount, 0);
+
+  const orphanTransactions = await pool.query(`
+    SELECT t.id FROM inventory_transactions t
+    LEFT JOIN inventory_batches b ON b.id=t.batch_id AND b.organization_id=t.organization_id
+    WHERE t.batch_id IS NOT NULL AND b.id IS NULL
+  `);
+  assert.equal(orphanTransactions.rowCount, 0);
+
+  const duplicateLots = await pool.query(`
+    SELECT organization_id, chemical_id, lot_number, COUNT(*)
+    FROM inventory_batches
+    GROUP BY organization_id, chemical_id, lot_number
+    HAVING COUNT(*) > 1
+  `);
+  assert.equal(duplicateLots.rowCount, 0);
+});
