@@ -28,7 +28,7 @@ The chemical master is separate from batch/lot inventory. Stock is derived from 
 
 ## Verification completed
 
-CI Run #23 passed on 27 September 2026 for commit `f4b03c4c53d32cf1f6428b365d3d4c4086271a5d`.
+CI Run #23 passed on 27 September 2026 for commit `f4b03c4c53d32cf1f6428b365d3d4c4086271a5d`. A later CI Run #39 exposed two test-harness defects introduced with the frontend/RBAC verification: the frontend smoke-test regex was invalid JavaScript, and the Storekeeper RBAC test reused a fixed lot number. Both were corrected in commits `4a14736139bf73ddc4046f8294afe4d4bf8a54d1` and `7aa98f91d309de15f7df848e3ee774f3b1e14d99`. The corrected commits require a fresh CI run before being treated as verified.
 
 That run included PostgreSQL 16, database migration, unit tests, PostgreSQL integration tests, FIFO tests, organisation isolation, insufficient-stock rollback, concurrent issue protection, expiry exclusion, transaction history and inventory RBAC coverage present at that commit.
 
@@ -80,7 +80,7 @@ The inventory UI uses the transaction engine as its source of truth instead of d
 
 These are still open and must not be represented as complete:
 
-1. CI for the newest RBAC/frontend commits.
+1. Fresh CI verification after the latest test fixes.
 2. Real HTTP authentication/session/CSRF integration tests.
 3. Backup/restore verification. Backup export exists; restore verification is not complete.
 4. Audit-log integrity and full API-level organisation-isolation tests.
