@@ -130,6 +130,14 @@ test('HTTP authentication and CSRF protection work through the real server', { s
     assert.ok(Array.isArray(backupBody.state.inventory_batches));
     assert.ok(Array.isArray(backupBody.state.inventory_transactions));
 
+    const validateRecovery = await fetch(`${server.baseUrl}/api/backup/validate`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie: cookies, 'X-CSRF-Token': csrfToken },
+      body: JSON.stringify(backupBody)
+    });
+    assert.equal(validateRecovery.status, 200);
+    assert.equal((await validateRecovery.json()).valid, true);
+
     // Recovery verification: restore the exported domain state into a fresh
     // organisation and verify that records, batches and the transaction ledger
     // survive the round trip without changing quantities or relationships.
