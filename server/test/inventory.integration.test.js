@@ -298,7 +298,7 @@ test('expired batches are excluded from FIFO issue', { skip: !shouldRun }, async
 });
 
 test('RBAC blocks a read-only analyst from inventory mutations', { skip: !shouldRun }, async () => {
-  activeUser = { id: userId, organization_id: organisationId, username: 'analyst', role: 'Analyst' };
+  activeUser = { id: userId, organization_id: organisationId, username: 'analyst', role: 'Analyst/Chemist' };
 
   const receive = await request('/api/inventory/receive', {
     method: 'POST',
