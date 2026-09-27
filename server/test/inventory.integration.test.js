@@ -17,6 +17,7 @@ const chemicalId = `IT-${crypto.randomUUID().slice(0, 8)}`;
 const concurrentChemicalId = `IT-CONC-${crypto.randomUUID().slice(0, 8)}`;
 const workflowChemicalId = `IT-WORK-${crypto.randomUUID().slice(0, 8)}`;
 const expiryChemicalId = `IT-EXP-${crypto.randomUUID().slice(0, 8)}`;
+const rbacLotNumber = `IT-LOT-RBAC-STORE-${crypto.randomUUID().slice(0, 8)}`;
 
 let server;
 let activeUser;
@@ -302,7 +303,7 @@ test('RBAC permits batch inventory mutations for Storekeeper and blocks Analyst/
 
   const receive = await request('/api/inventory/receive', {
     method: 'POST',
-    body: JSON.stringify({ chemicalId: workflowChemicalId, lotNumber: 'IT-LOT-RBAC-STORE', quantity: 1, unit: 'L' })
+    body: JSON.stringify({ chemicalId: workflowChemicalId, lotNumber: rbacLotNumber, quantity: 1, unit: 'L' })
   });
   assert.equal(receive.response.status, 201);
 
