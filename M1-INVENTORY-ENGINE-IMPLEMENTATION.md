@@ -235,10 +235,8 @@ Earlier M0 architecture work also added:
 
 The following are deliberately not being treated as finished:
 
-- RETURN workflow
-- TRANSFER workflow
-- ADJUSTMENT workflow
-- DISPOSAL workflow
+- Partial-batch transfer workflow (current transfer safely supports whole-batch moves only)
+- organisation-configurable adjustment approval policy
 - full PostgreSQL integration tests
 - concurrency integration tests
 - end-to-end browser tests
@@ -254,19 +252,19 @@ These are next-stage requirements, not silently assumed to be complete.
 
 The immediate next implementation is:
 
-### 1. RETURN
+### 1. RETURN — implemented
 
 Return unused material to an existing batch while preserving the transaction history.
 
-### 2. TRANSFER
+### 2. TRANSFER — implemented for whole batches
 
-Move stock between locations without changing total organisational stock.
+Move a complete batch between locations without changing total organisational stock. Partial-batch transfer is intentionally rejected until location-level stock is modelled explicitly.
 
-### 3. ADJUSTMENT
+### 3. ADJUSTMENT — implemented
 
-Provide an authorised correction mechanism that creates an adjustment transaction rather than editing historical transactions.
+Provide an authorised correction mechanism that creates an adjustment transaction rather than editing historical transactions. A reason is mandatory and decreases cannot create negative stock.
 
-### 4. DISPOSAL
+### 4. DISPOSAL — implemented
 
 Remove stock through a traceable disposal transaction with mandatory reason and actor.
 
@@ -297,9 +295,9 @@ The system should preserve that traceability even when the interface becomes sim
 
 ## Verification status
 
-M1 foundation: IMPLEMENTED.
+M1 transaction workflows implemented: RECEIVE, ISSUE, RETURN, TRANSFER (whole batch), ADJUSTMENT and DISPOSAL.
 
-M1 complete: NOT YET.
+M1 complete: NOT YET — integration/concurrency testing and workflow UI remain.
 
 Production-ready inventory engine: NOT YET.
 
