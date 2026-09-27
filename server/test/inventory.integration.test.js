@@ -297,14 +297,29 @@ test('expired batches are excluded from FIFO issue', { skip: !shouldRun }, async
   assert.equal(stock.body[0].availableQuantity, 5);
 });
 
-test('RBAC blocks a read-only analyst from inventory mutations', { skip: !shouldRun }, async () => {
-  activeUser = { id: userId, organization_id: organisationId, username: 'analyst', role: 'Analyst/Chemist' };
+test('RBAC permits batch inventory mutations for Storekeeper and blocks Analyst/Chemist mutations', { skip: !shouldRun }, async () => {
+  activeUser = { id: userId, organization_id: organisationId, username: 'storekeeper', role: 'Storekeeper' };
 
   const receive = await request('/api/inventory/receive', {
     method: 'POST',
-    body: JSON.stringify({ chemicalId: workflowChemicalId, lotNumber: 'IT-LOT-RBAC', quantity: 1, unit: 'L' })
+    body: JSON.stringify({ chemicalId: workflowChemicalId, lotNumber: 'IT-LOT-RBAC-STORE', quantity: 1, unit: 'L' })
   });
-  assert.equal(receive.response.status, 403);
+  assert.equal(receive.response.status, 201);
+
+  const storeBatchId = receive.body.id;
+  const issue = await request('/api/inventory/issue', {
+    method: 'POST',
+    body: JSON.stringify({ chemicalId: workflowChemicalId, quantity: 1, unit: 'L', reason: 'RBAC issue test' })
+  });
+  assert.equal(issue.response.status, 201);
+
+  activeUser = { id: userId, organization_id: organisationId, username: 'analyst', role: 'Analyst/Chemist' };
+
+  const analystReceive = await request('/api/inventory/receive', {
+    method: 'POST',
+    body: JSON.stringify({ chemicalId: workflowChemicalId, lotNumber: 'IT-LOT-RBAC-ANALYST', quantity: 1, unit: 'L' })
+  });
+  assert.equal(analystReceive.response.status, 403);
 
   const stock = await request(`/api/inventory/stock/${workflowChemicalId}`);
   assert.equal(stock.response.status, 200);
