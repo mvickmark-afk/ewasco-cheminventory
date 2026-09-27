@@ -15,8 +15,11 @@ const otherOrganisationId = crypto.randomUUID();
 const otherUserId = crypto.randomUUID();
 const chemicalId = `IT-${crypto.randomUUID().slice(0, 8)}`;
 const concurrentChemicalId = `IT-CONC-${crypto.randomUUID().slice(0, 8)}`;
+const workflowChemicalId = `IT-WORK-${crypto.randomUUID().slice(0, 8)}`;
+const expiryChemicalId = `IT-EXP-${crypto.randomUUID().slice(0, 8)}`;
 
 let server;
+let activeUser;
 let baseUrl;
 
 async function audit(client, user, action, entity, recordId, data) {
@@ -30,7 +33,7 @@ function buildApp(user) {
   const app = express();
   app.use(express.json());
   app.use((req, _res, next) => {
-    req.user = user;
+    req.user = activeUser || user;
     next();
   });
   registerInventoryRoutes({ app, pool, auth: (_req, _res, next) => next(), audit });
@@ -70,12 +73,19 @@ before(async () => {
     ]
   );
   await insertChemical(organisationId);
+  for (const [id, name] of [[workflowChemicalId, 'Workflow Test Chemical'], [expiryChemicalId, 'Expiry Test Chemical']]) {
+    await pool.query(
+      'INSERT INTO records(id,organization_id,entity,data) VALUES($1,$2,$3,$4)',
+      [id, organisationId, 'chemicals', JSON.stringify({ id, name, unit: 'L' })]
+    );
+  }
   await pool.query(
     'INSERT INTO records(id,organization_id,entity,data) VALUES($1,$2,$3,$4)',
     [concurrentChemicalId, organisationId, 'chemicals', JSON.stringify({ id: concurrentChemicalId, name: 'Concurrent Test Chemical', unit: 'L' })]
   );
 
-  const app = buildApp({ id: userId, organization_id: organisationId, username: 'integration', role: 'Administrator' });
+  activeUser = { id: userId, organization_id: organisationId, username: 'integration', role: 'Administrator' };
+  const app = buildApp(activeUser);
   await new Promise(resolve => {
     server = app.listen(0, '127.0.0.1', resolve);
   });
@@ -183,4 +193,121 @@ test('concurrent issues cannot oversell a batch', { skip: !shouldRun }, async ()
   const stock = await request(`/api/inventory/stock/${concurrentChemicalId}`);
   const concurrentBatch = stock.body.find(x => x.lotNumber === 'IT-LOT-CONCURRENT');
   assert.equal(concurrentBatch.availableQuantity, 3);
+});
+
+
+test('return, adjustment, disposal and transfer preserve stock and transaction history', { skip: !shouldRun }, async () => {
+  const received = await request('/api/inventory/receive', {
+    method: 'POST',
+    body: JSON.stringify({ chemicalId: workflowChemicalId, lotNumber: 'IT-LOT-WORKFLOW', quantity: 10, unit: 'L', location: 'Cabinet A' })
+  });
+  assert.equal(received.response.status, 201);
+  const batchId = received.body.id;
+
+  const returned = await request('/api/inventory/return', {
+    method: 'POST',
+    body: JSON.stringify({ chemicalId: workflowChemicalId, batchId, quantity: 2, unit: 'L', reason: 'Unused returned stock' })
+  });
+  assert.equal(returned.response.status, 201);
+
+  const increased = await request('/api/inventory/adjust', {
+    method: 'POST',
+    body: JSON.stringify({ chemicalId: workflowChemicalId, batchId, quantity: 1, unit: 'L', direction: 'INCREASE', reason: 'Physical count correction' })
+  });
+  assert.equal(increased.response.status, 201);
+
+  const decreased = await request('/api/inventory/adjust', {
+    method: 'POST',
+    body: JSON.stringify({ chemicalId: workflowChemicalId, batchId, quantity: 2, unit: 'L', direction: 'DECREASE', reason: 'Damaged stock correction' })
+  });
+  assert.equal(decreased.response.status, 201);
+
+  const disposed = await request('/api/inventory/dispose', {
+    method: 'POST',
+    body: JSON.stringify({ chemicalId: workflowChemicalId, batchId, quantity: 1, unit: 'L', reason: 'Expired container disposal' })
+  });
+  assert.equal(disposed.response.status, 201);
+
+  const transferred = await request('/api/inventory/transfer', {
+    method: 'POST',
+    body: JSON.stringify({ chemicalId: workflowChemicalId, batchId, quantity: 10, unit: 'L', toLocation: 'Cabinet B', reason: 'Relocation' })
+  });
+  assert.equal(transferred.response.status, 409);
+
+  const stockBeforeTransfer = await request(`/api/inventory/stock/${workflowChemicalId}`);
+  assert.equal(stockBeforeTransfer.body[0].availableQuantity, 10);
+
+  const fullTransfer = await request('/api/inventory/transfer', {
+    method: 'POST',
+    body: JSON.stringify({ chemicalId: workflowChemicalId, batchId, quantity: 10, unit: 'L', toLocation: 'Cabinet B', reason: 'Full batch relocation' })
+  });
+  assert.equal(fullTransfer.response.status, 201);
+
+  const stockAfterTransfer = await request(`/api/inventory/stock/${workflowChemicalId}`);
+  assert.equal(stockAfterTransfer.body[0].availableQuantity, 10);
+  assert.equal(stockAfterTransfer.body[0].location, 'Cabinet B');
+
+  const history = await request(`/api/inventory/transactions/${workflowChemicalId}`);
+  assert.equal(history.response.status, 200);
+  assert.deepEqual(
+    new Set(history.body.map(x => x.transactionType)),
+    new Set(['RECEIVE', 'RETURN', 'ADJUSTMENT', 'DISPOSAL', 'TRANSFER'])
+  );
+});
+
+test('decreasing adjustment and disposal cannot create negative stock', { skip: !shouldRun }, async () => {
+  const received = await request('/api/inventory/receive', {
+    method: 'POST',
+    body: JSON.stringify({ chemicalId: workflowChemicalId, lotNumber: 'IT-LOT-NEGATIVE', quantity: 3, unit: 'L' })
+  });
+  assert.equal(received.response.status, 201);
+  const batchId = received.body.id;
+
+  const adjustment = await request('/api/inventory/adjust', {
+    method: 'POST',
+    body: JSON.stringify({ chemicalId: workflowChemicalId, batchId, quantity: 4, unit: 'L', direction: 'DECREASE', reason: 'Negative test' })
+  });
+  assert.equal(adjustment.response.status, 409);
+
+  const disposal = await request('/api/inventory/dispose', {
+    method: 'POST',
+    body: JSON.stringify({ chemicalId: workflowChemicalId, batchId, quantity: 4, unit: 'L', reason: 'Negative test' })
+  });
+  assert.equal(disposal.response.status, 409);
+
+  const stock = await request(`/api/inventory/stock/${workflowChemicalId}`);
+  const batch = stock.body.find(x => x.lotNumber === 'IT-LOT-NEGATIVE');
+  assert.equal(batch.availableQuantity, 3);
+});
+
+test('expired batches are excluded from FIFO issue', { skip: !shouldRun }, async () => {
+  const received = await request('/api/inventory/receive', {
+    method: 'POST',
+    body: JSON.stringify({ chemicalId: expiryChemicalId, lotNumber: 'IT-LOT-EXPIRED', quantity: 5, unit: 'L', expiryDate: '2000-01-01' })
+  });
+  assert.equal(received.response.status, 201);
+
+  const issue = await request('/api/inventory/issue', {
+    method: 'POST',
+    body: JSON.stringify({ chemicalId: expiryChemicalId, quantity: 1, unit: 'L', reason: 'Expiry test' })
+  });
+  assert.equal(issue.response.status, 409);
+
+  const stock = await request(`/api/inventory/stock/${expiryChemicalId}`);
+  assert.equal(stock.body[0].availableQuantity, 5);
+});
+
+test('RBAC blocks a read-only analyst from inventory mutations', { skip: !shouldRun }, async () => {
+  activeUser = { id: userId, organization_id: organisationId, username: 'analyst', role: 'Analyst' };
+
+  const receive = await request('/api/inventory/receive', {
+    method: 'POST',
+    body: JSON.stringify({ chemicalId: workflowChemicalId, lotNumber: 'IT-LOT-RBAC', quantity: 1, unit: 'L' })
+  });
+  assert.equal(receive.response.status, 403);
+
+  const stock = await request(`/api/inventory/stock/${workflowChemicalId}`);
+  assert.equal(stock.response.status, 200);
+
+  activeUser = { id: userId, organization_id: organisationId, username: 'integration', role: 'Administrator' };
 });
