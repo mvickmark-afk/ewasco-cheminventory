@@ -23,13 +23,21 @@ app.post('/api/backup/validate',auth,feat('restore'),(req,res)=>{try{validateBac
     await c.query('BEGIN');
     const org=(await c.query('INSERT INTO organizations(name) VALUES($1) RETURNING id,name',[targetName])).rows[0];
     for(const r of backup.state.records){
-      await c.query('INSERT INTO records(id,organization_id,entity,data) VALUES($1,$2,$3,$4)',[r.id,org.id,r.entity,r]);
+      const data={...r};
+      delete data.id;
+      delete data.entity;
+      await c.query('INSERT INTO records(id,organization_id,entity,data) VALUES($1,$2,$3,$4)',[r.id,org.id,r.entity,data]);
     }
+    const batchIdMap=new Map();
     for(const b of backup.state.inventory_batches){
-      await c.query('INSERT INTO inventory_batches(id,organization_id,chemical_id,lot_number,received_at,expiry_date,unit,received_quantity,location,max_quantity,metadata,created_by) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)',[b.id,org.id,b.chemical_id,b.lot_number,b.received_at,b.expiry_date,b.unit,b.received_quantity,b.location,b.max_quantity,b.metadata||{},req.user.id]);
+      const newBatchId=crypto.randomUUID();
+      batchIdMap.set(b.id,newBatchId);
+      await c.query('INSERT INTO inventory_batches(id,organization_id,chemical_id,lot_number,received_at,expiry_date,unit,received_quantity,location,max_quantity,metadata,created_by) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)',[newBatchId,org.id,b.chemical_id,b.lot_number,b.received_at,b.expiry_date,b.unit,b.received_quantity,b.location,b.max_quantity,b.metadata||{},req.user.id]);
     }
     for(const t of backup.state.inventory_transactions){
-      await c.query('INSERT INTO inventory_transactions(id,organization_id,transaction_type,chemical_id,batch_id,quantity,unit,reference,reason,actor_id,created_at,metadata) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)',[t.id,org.id,t.transaction_type,t.chemical_id,t.batch_id,t.quantity,t.unit,t.reference,t.reason,req.user.id,t.created_at,t.metadata||{}]);
+      const newBatchId=t.batch_id ? batchIdMap.get(t.batch_id) : null;
+      if(t.batch_id && !newBatchId) throw Error(`Restored transaction references missing batch: ${t.batch_id}`);
+      await c.query('INSERT INTO inventory_transactions(id,organization_id,transaction_type,chemical_id,batch_id,quantity,unit,reference,reason,actor_id,created_at,metadata) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)',[crypto.randomUUID(),org.id,t.transaction_type,t.chemical_id,newBatchId,t.quantity,t.unit,t.reference,t.reason,req.user.id,t.created_at,t.metadata||{}]);
     }
     const bad=await c.query(`SELECT b.id FROM inventory_batches b LEFT JOIN inventory_transactions t ON t.batch_id=b.id AND t.organization_id=b.organization_id GROUP BY b.id HAVING COALESCE(SUM(CASE WHEN t.transaction_type IN ('RECEIVE','RETURN') THEN t.quantity WHEN t.transaction_type IN ('ISSUE','DISPOSAL') THEN -t.quantity WHEN t.transaction_type='ADJUSTMENT' AND COALESCE(t.metadata->>'direction','')='INCREASE' THEN t.quantity WHEN t.transaction_type='ADJUSTMENT' AND COALESCE(t.metadata->>'direction','')='DECREASE' THEN -t.quantity ELSE 0 END),0)<0`);
     if(bad.rowCount) throw Error('Restored inventory invariant failed');
