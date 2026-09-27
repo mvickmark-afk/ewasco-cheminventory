@@ -126,8 +126,8 @@ test('HTTP authentication and CSRF protection work through the real server', { s
     assert.equal(backup.status, 200);
     const backupBody = await backup.json();
     assert.equal(backupBody.app, 'laboratory-inventory');
-    assert.ok(Array.isArray(backupBody.state.chemicals));
-    assert.ok(backupBody.state.chemicals.some(x => x.id === chemicalId));
+    assert.ok(Array.isArray(backupBody.state.records));
+    assert.ok(backupBody.state.records.some(x => x.entity === 'chemicals' && x.id === chemicalId));
     assert.ok(Array.isArray(backupBody.state.inventory_batches));
     assert.ok(Array.isArray(backupBody.state.inventory_transactions));
 
