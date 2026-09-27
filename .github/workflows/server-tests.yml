@@ -1,0 +1,41 @@
+name: Server tests
+
+on:
+  push:
+    branches: [main, feature/chemical-inventory-workflow]
+  pull_request:
+
+jobs:
+  server-tests:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ewasco_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d ewasco_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    defaults:
+      run:
+        working-directory: server
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/ewasco_test
+      JWT_SECRET: test-secret-that-is-at-least-32-characters-long
+      CORS_ORIGIN: http://localhost:3000
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run migrate
+      - run: npm test
+
+# Production hardening remains covered by the server test gate.
