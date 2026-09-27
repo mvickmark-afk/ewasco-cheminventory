@@ -64,6 +64,7 @@ test('HTTP authentication and CSRF protection work through the real server', { s
   const password = 'Integration-Test-Password-2026!';
   const passwordHash = await bcrypt.hash(password, 4);
   let server;
+  let apiRestoreOrganizationId;
 
   await pool.query('INSERT INTO organizations(id,name) VALUES($1,$2)', [organizationId, `HTTP Test Organisation ${organizationId.slice(0, 8)}`]);
   await pool.query(
@@ -158,7 +159,6 @@ test('HTTP authentication and CSRF protection work through the real server', { s
     // Recovery verification: restore the exported domain state into a fresh
     // organisation and verify that records, batches and the transaction ledger
     // survive the round trip without changing quantities or relationships.
-    let apiRestoreOrganizationId;
     const recoveryOrganizationId = crypto.randomUUID();
     const recoveryUserId = crypto.randomUUID();
     try {
