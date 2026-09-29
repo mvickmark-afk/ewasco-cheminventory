@@ -1,223 +1,210 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ChemInventory / EWASCO v2</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EWASCO Laboratory Information Management System</title>
 <style>
-:root{--bg:#071321;--panel:#0d1b2a;--panel2:#102235;--line:#1d3449;--text:#e8f1f8;--muted:#91a6b8;--accent:#42d392;--danger:#ff6273}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px system-ui,sans-serif}button,input,textarea,select{font:inherit}button{cursor:pointer}.hidden{display:none!important}.wrap{max-width:1400px;margin:auto;padding:20px}.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px}.login{min-height:100vh;display:grid;place-items:center}.login .card{width:min(420px,100%)}h1,h2,h3{margin-top:0}.muted{color:var(--muted)}label{display:grid;gap:6px;margin:10px 0}.input{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px;color:var(--text)}.btn{border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:9px 12px;border-radius:8px}.primary{background:var(--accent);color:#062014;border-color:var(--accent)}.danger{color:#fff;background:var(--danger);border-color:var(--danger)}.bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:18px}.bar .spacer{flex:1}.grid{display:grid;grid-template-columns:240px 1fr;gap:18px}.nav{display:grid;gap:7px}.nav button{text-align:left}.nav button.active{border-color:var(--accent);color:var(--accent)}.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.table-wrap{overflow:auto}.table{width:100%;border-collapse:collapse}.table th,.table td{text-align:left;padding:10px;border-bottom:1px solid var(--line);vertical-align:top}.table th{color:var(--muted)}.json{min-height:260px;resize:vertical;font-family:ui-monospace,monospace}.error{color:var(--danger);min-height:20px}.badge{display:inline-block;border:1px solid var(--line);border-radius:99px;padding:3px 8px;color:var(--muted);font-size:12px}.settings-page{display:grid;gap:14px}.settings-hero{background:linear-gradient(135deg,#0d1b2a,#102b32);border:1px solid #21445b;border-radius:14px;padding:18px}.settings-hero h3{margin:0 0 6px;font-size:18px}.settings-hero .sub{color:var(--muted);max-width:760px;line-height:1.5}.settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.settings-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:15px}.settings-card.full{grid-column:1/-1}.settings-card h3{margin:0 0 4px}.settings-card .hint{color:var(--muted);font-size:12px;margin:0 0 12px;line-height:1.45}.settings-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.settings-field{display:grid;gap:5px}.settings-field.span2{grid-column:span 2}.settings-field label{display:block;margin:0;color:var(--muted);font-size:11px}.settings-field input,.settings-field select,.settings-field textarea{width:100%;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:9px 10px}.settings-field textarea{min-height:74px;resize:vertical}.settings-field input:focus,.settings-field select:focus,.settings-field textarea:focus{outline:none;border-color:var(--accent)}.settings-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-top:12px}.settings-kpi{background:#091827;border:1px solid var(--line);border-radius:10px;padding:11px}.settings-kpi .label{font-size:10px;color:var(--muted)}.settings-kpi .value{margin-top:5px;font-weight:700}.status-line{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--line)}.status-line:last-child{border-bottom:0}.status-dot{display:inline-flex;align-items:center;gap:6px}.status-dot i{width:8px;height:8px;border-radius:50%;background:var(--danger);display:inline-block}.status-dot.ok i{background:var(--accent)}.settings-table{width:100%;border-collapse:collapse;font-size:12px}.settings-table th,.settings-table td{padding:8px 7px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}.settings-table th{color:var(--muted);font-weight:600}.setting-pills{display:flex;flex-wrap:wrap;gap:6px}.setting-pill{border:1px solid var(--line);background:#091827;border-radius:99px;padding:5px 9px;font-size:11px;color:#c9d8e4}.settings-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:12px;margin-top:4px}.read-only{opacity:.72}.warning-box{border:1px solid #6b5016;background:#2a210c;border-radius:9px;padding:10px;font-size:12px;color:#f3d28e}.success-box{border:1px solid #1d5b47;background:#0c2a20;border-radius:9px;padding:10px;font-size:12px;color:#9ce8c2}.inline-check{display:flex;align-items:center;gap:8px;min-height:38px;padding:8px 10px;background:var(--panel2);border:1px solid var(--line);border-radius:8px}.inline-check input{width:auto}.settings-meta{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}@media(max-width:1000px){.settings-grid{grid-template-columns:1fr}.settings-card.full{grid-column:auto}.settings-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:700px){.settings-fields{grid-template-columns:1fr}.settings-field.span2{grid-column:span 1}.settings-kpis{grid-template-columns:1fr}.settings-hero{padding:15px}}@media(max-width:800px){.grid{grid-template-columns:1fr}}
+:root{--bg:#06111d;--panel:#0c1a29;--panel2:#102235;--line:#20384f;--text:#eaf3fa;--muted:#91a8bb;--accent:#42d392;--warn:#e7bd64;--danger:#ff6575;--shadow:0 12px 36px rgba(0,0,0,.24)}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--text);font:14px system-ui,-apple-system,Segoe UI,sans-serif}button,input,textarea,select{font:inherit}button{cursor:pointer}
+.hidden{display:none!important}.wrap{max-width:1500px;margin:auto;padding:18px}.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:var(--shadow)}.login{min-height:100vh;display:grid;place-items:center}.login .card{width:min(440px,calc(100% - 28px))}
+h1,h2,h3{margin:0 0 10px}.muted{color:var(--muted)}.error{color:var(--danger);min-height:20px}.success{color:var(--accent)}label{display:grid;gap:6px;margin:10px 0}.input,select,textarea{width:100%;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:9px;padding:10px}.input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}textarea{min-height:100px;resize:vertical}
+.btn{border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:9px 12px;border-radius:9px}.btn:hover{border-color:#3b627e}.primary{background:var(--accent);color:#051a11;border-color:var(--accent);font-weight:700}.danger{background:var(--danger);color:#fff;border-color:var(--danger)}.ghost{background:transparent}
+.bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px}.spacer{flex:1}.grid{display:grid;grid-template-columns:240px 1fr;gap:16px}.nav{display:grid;gap:6px;align-content:start;position:sticky;top:14px;max-height:calc(100vh - 28px);overflow:auto}.nav button{text-align:left}.nav .section{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em;padding:8px 4px 2px}.nav button.active{border-color:var(--accent);color:var(--accent)}
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}.table-wrap{overflow:auto}.table{width:100%;border-collapse:collapse}.table th,.table td{text-align:left;padding:10px;border-bottom:1px solid var(--line);vertical-align:top}.table th{color:var(--muted);font-size:12px}.table tr.clickable{cursor:pointer}.table tr.clickable:hover{background:#0f2434}
+.badge{display:inline-block;padding:4px 8px;border:1px solid var(--line);border-radius:999px;font-size:11px;color:var(--muted)}.badge.good{color:var(--accent);border-color:#21664f}.badge.bad{color:var(--danger);border-color:#6b2d39}.badge.warn{color:var(--warn);border-color:#66521f}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.kpi{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px}.kpi .n{font-size:24px;font-weight:800}.kpi .l{font-size:11px;color:var(--muted);margin-top:4px}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:12px}.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.span2{grid-column:span 2}.inline{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.section-card{margin-top:14px}.empty{padding:22px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:10px}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.68);display:grid;place-items:center;padding:18px;z-index:20}.modal{width:min(620px,100%);max-height:90vh;overflow:auto}.checklist{display:grid;gap:7px;max-height:260px;overflow:auto;border:1px solid var(--line);padding:10px;border-radius:10px;background:var(--panel2)}.check{display:flex;gap:8px;align-items:flex-start}.check input{margin-top:3px}
+.security-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.note{font-size:12px;color:var(--muted);line-height:1.45}.warning{background:#2a220e;border:1px solid #66531f;color:#efd48e;padding:10px;border-radius:9px;font-size:12px}
+@media(max-width:1050px){.grid{grid-template-columns:1fr}.nav{position:static;max-height:none;grid-template-columns:repeat(3,minmax(0,1fr))}.nav .section{grid-column:1/-1}.kpis{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:720px){.wrap{padding:10px}.nav{grid-template-columns:1fr 1fr}.form-grid,.split,.security-grid{grid-template-columns:1fr}.span2{grid-column:span 1}.kpis{grid-template-columns:1fr 1fr}.table th,.table td{padding:8px 7px}}
 </style>
 </head>
 <body>
-<section id="login" class="login"><form id="loginForm" class="card"><h1>Chem<span style="color:var(--accent)">Inventory</span></h1><p class="muted">EWASCO v2 secure sign in</p><label>Username<input id="username" class="input" autocomplete="username" required></label><label>Password<input id="password" class="input" type="password" autocomplete="current-password" required></label><button class="btn primary" type="submit">Sign in</button><p id="loginError" class="error"></p></form></section>
-<section id="app" class="wrap hidden"><header class="bar"><div><h1 style="margin:0">EWASCO v2</h1><span id="identity" class="muted"></span></div><span class="spacer"></span><button id="backup" class="btn">Download backup</button><button id="logout" class="btn">Sign out</button></header><div class="grid"><nav id="nav" class="card nav"></nav><main><div class="card"><div class="bar"><h2 id="title" style="margin:0"></h2><span class="spacer"></span><button id="refresh" class="btn">Refresh</button><button id="newRecord" class="btn primary">New record</button></div><div class="toolbar"><input id="search" class="input" placeholder="Search records…"></div><div id="content"></div></div></main></div></section>
+<section id="login" class="login">
+  <form id="loginForm" class="card">
+    <h1>EWASCO <span style="color:var(--accent)">LIMS</span></h1>
+    <p class="muted">Secure laboratory information management system</p>
+    <label>Username<input id="username" class="input" autocomplete="username" required></label>
+    <label>Password<input id="password" class="input" type="password" autocomplete="current-password" required></label>
+    <button class="btn primary" type="submit">Sign in</button>
+    <p id="loginError" class="error"></p>
+  </form>
+</section>
+
+<section id="app" class="wrap hidden">
+  <header class="bar">
+    <div><h1 style="margin:0">EWASCO LIMS</h1><span id="identity" class="muted"></span></div>
+    <span class="spacer"></span>
+    <span class="badge">Server-enforced security</span>
+    <button id="logout" class="btn">Sign out</button>
+  </header>
+  <div class="grid">
+    <nav id="nav" class="card nav"></nav>
+    <main class="card">
+      <div class="bar"><div><h2 id="title"></h2><div id="subtitle" class="muted"></div></div><span class="spacer"></span><button id="refresh" class="btn">Refresh</button></div>
+      <div id="content"></div>
+    </main>
+  </div>
+</section>
+
 <script src="/api-client.js"></script>
 <script>
 'use strict';
-const entities=['chemicals','batches','reagents','consumption','equipment','calibrations','suppliers','procurement','water','waste','sds','settings'];
-const labels={chemicals:'Chemical Inventory',batches:'Batches',reagents:'Reagent Preparation',consumption:'Consumption',equipment:'Equipment',calibrations:'Calibrations',suppliers:'Suppliers',procurement:'Procurement',water:'Water Treatment',waste:'Waste',sds:'SDS / MSDS',settings:'Settings'};
-const state={entity:'chemicals',records:[],user:null};
-const $=id=>document.getElementById(id), esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function message(text){$('loginError').textContent=text;setTimeout(()=>{$('loginError').textContent=''},5000)}
-async function boot(){try{const x=await EWASCO_API.me();state.user=x.user;showApp();await select(state.entity)}catch{}}
-function showApp(){$('login').classList.add('hidden');$('app').classList.remove('hidden');$('identity').textContent=`${state.user.name} · ${state.user.role}`;renderNav()}
-function renderNav(){$('nav').innerHTML=entities.map(e=>`<button class="btn ${e===state.entity?'active':''}" data-entity="${e}">${labels[e]}</button>`).join('');$('nav').querySelectorAll('button').forEach(b=>b.onclick=()=>select(b.dataset.entity))}
-async function select(entity){state.entity=entity;renderNav();$('title').textContent=labels[entity];const isSettings=entity==='settings';$('newRecord').classList.toggle('hidden',isSettings);$('search').classList.toggle('hidden',isSettings);$('content').innerHTML='<p class="muted">Loading…</p>';try{state.records=await EWASCO_API.list(entity);isSettings?renderSettings():renderRecords()}catch(e){$('content').innerHTML=`<p class="error">${esc(e.message)}</p>`}}
-function renderSettings(){
- const saved=state.records.find(x=>x.id==='SETTINGS-BASELINE')||state.records[0]||{id:'SETTINGS-BASELINE'};
- const cfg={
-  id:saved.id||'SETTINGS-BASELINE',
-  systemName:'EWASCO Chemical Inventory',
-  applicationVersion:'v2',
-  organizationName:'EWASCO',
-  siteName:'',
-  defaultMassUnit:'kg',
-  defaultVolumeUnit:'L',
-  expiryAlertDays:90,
-  lowStockAlerts:true,
-  turbidityReferenceNTU:5,
-  pHMin:6.5,
-  pHMax:8.5,
-  freeChlorineTargetMgL:'',
-  jarTestCriterion:'Least dose achieving <2.0 NTU; exclude nil-dose control',
-  chlorineDemandCriterion:'Least dose achieving target RCl; fallback if none meet target',
-  ...saved
- };
- const canEdit=['Administrator','Laboratory Manager'].includes(state.user?.role);
- const modules=['Chemical Inventory','Batches / FIFO','Reagent Preparation','Consumption','Equipment & Calibration','Suppliers','Procurement','Water Treatment','Waste Management','SDS / MSDS','Audit Trail','Settings'];
- const roles=[
-  ['Administrator','Full operational access','Audit, backup, restore, user administration, SDS'],
-  ['Laboratory Manager','Operational administration','Audit, backup, SDS; settings update'],
-  ['Analyst/Chemist','Laboratory operations','Reagents, consumption, water, waste, SDS'],
-  ['Storekeeper','Chemical store operations','Chemicals, batches, suppliers, procurement']
- ];
+const $=id=>document.getElementById(id);
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=d=>d?new Date(d).toLocaleString('en-KE'):'—';
+const roles={admin:['Administrator','Laboratory Manager'].includes.bind(['Administrator','Laboratory Manager'])};
+const state={page:'dashboard',user:null,cache:{}};
+const pages=[
+  ['LIMS','dashboard','LIMS Dashboard'],['LIMS','samples','Samples'],['LIMS','worklist','Analytical Worklist'],['LIMS','points','Sampling Points'],['LIMS','methods','Tests & Methods'],['LIMS','specs','Specifications'],
+  ['SECURITY','security','Security & Users'],
+  ['LEGACY','chemicals','Chemical Inventory'],['LEGACY','batches','Batches'],['LEGACY','reagents','Reagent Preparation'],['LEGACY','consumption','Consumption'],['LEGACY','equipment','Equipment'],['LEGACY','calibrations','Calibrations'],['LEGACY','suppliers','Suppliers'],['LEGACY','procurement','Procurement'],['LEGACY','water','Water Treatment'],['LEGACY','waste','Waste'],['LEGACY','sds','SDS / MSDS'],['LEGACY','audit','Audit Trail'],['LEGACY','settings','Settings']
+];
+const canSetup=()=>['Administrator','Laboratory Manager'].includes(state.user?.role);
+const canReview=()=>['Administrator','Laboratory Manager'].includes(state.user?.role);
+const canApprove=()=>['Administrator','Laboratory Manager'].includes(state.user?.role);
+const canUsers=()=>state.user?.role==='Administrator';
+function toast(msg,ok=false){const x=$('subtitle');x.textContent=msg;x.className=ok?'success':'error';setTimeout(()=>{x.textContent='';x.className='muted'},4500)}
+async function boot(){try{const x=await EWASCO_API.me();state.user=x.user;showApp();await go('dashboard')}catch{}}
+function showApp(){$('login').classList.add('hidden');$('app').classList.remove('hidden');$('identity').textContent=state.user.name+' · '+state.user.role;renderNav()}
+function renderNav(){
+ const allowed=pages.filter(p=>{
+   if(p[1]==='security')return state.user.role==='Administrator'||state.user.role==='Laboratory Manager'||state.user.role==='Analyst/Chemist';
+   if(['points','methods','specs'].includes(p[1]))return state.user.role!=='Storekeeper';
+   if(['dashboard','samples','worklist'].includes(p[1]))return state.user.role!=='Storekeeper';
+   if(p[0]==='LEGACY')return true;
+   return true;
+ });
+ let last='';$('nav').innerHTML=allowed.map(p=>{const sec=p[0]!==last?(last=p[0],'<div class="section">'+esc(p[0])+'</div>'):'';return sec+`<button class="btn ${p[1]===state.page?'active':''}" data-page="${p[1]}">${esc(p[2])}</button>`}).join('');
+ $('nav').querySelectorAll('[data-page]').forEach(b=>b.onclick=()=>go(b.dataset.page));
+}
+async function go(page){state.page=page;renderNav();$('title').textContent=pages.find(x=>x[1]===page)?.[2]||page;$('content').innerHTML='<div class="empty">Loading…</div>';try{
+ if(page==='dashboard')return renderDashboard();if(page==='samples')return renderSamples();if(page==='worklist')return renderWorklist();if(page==='points')return renderPoints();if(page==='methods')return renderMethods();if(page==='specs')return renderSpecs();if(page==='security')return renderSecurity();return renderLegacy(page);
+}catch(e){$('content').innerHTML='<div class="error">'+esc(e.message)+'</div>'}}
+$('refresh').onclick=()=>go(state.page);
+
+async function renderDashboard(){
+ const d=await EWASCO_API.limsDashboard();
+ const sampleCounts=Object.fromEntries(d.samples.map(x=>[x.status,x.count]));const testCounts=Object.fromEntries(d.tests.map(x=>[x.status,x.count]));const results=d.results.reduce((a,x)=>{a.count+=x.count;a.failed+=x.failed;return a},{count:0,failed:0});
  $('content').innerHTML=`
- <div class="settings-page">
-  <section class="settings-hero">
-   <h3>EWASCO Configuration Centre</h3>
-   <div class="sub">Central configuration for the production EWASCO Chemical Inventory system. This page is backed by PostgreSQL and the existing role-controlled API; it does not use the legacy browser-only storage model.</div>
-   <div class="settings-meta">
-    <span class="badge">Production</span><span class="badge">PostgreSQL</span><span class="badge">Role-based access</span><span class="badge">Audit trail</span><span class="badge">SDS lifecycle</span>
-   </div>
-   <div class="settings-kpis">
-    <div class="settings-kpi"><div class="label">Current user</div><div class="value">${esc(state.user?.name||'—')}</div></div>
-    <div class="settings-kpi"><div class="label">Role</div><div class="value">${esc(state.user?.role||'—')}</div></div>
-    <div class="settings-kpi"><div class="label">Configuration record</div><div class="value">${esc(saved.id||'SETTINGS-BASELINE')}</div></div>
-    <div class="settings-kpi"><div class="label">Last saved</div><div class="value">${esc(saved._updatedAt?new Date(saved._updatedAt).toLocaleString('en-KE'):'Not available')}</div></div>
-   </div>
-  </section>
-
-  <form id="settingsForm" class="settings-grid">
-   <section class="settings-card">
-    <h3>Organisation & application</h3>
-    <p class="hint">Identity shown within the system. These fields are configuration values, not regulatory claims.</p>
-    <div class="settings-fields">
-     <div class="settings-field"><label>Organisation name</label><input id="cfg_org" value="${esc(cfg.organizationName)}" ${canEdit?'':'disabled'}></div>
-     <div class="settings-field"><label>Site / laboratory unit</label><input id="cfg_site" value="${esc(cfg.siteName)}" placeholder="Enter verified site or laboratory unit" ${canEdit?'':'disabled'}></div>
-     <div class="settings-field"><label>System name</label><input id="cfg_system" value="${esc(cfg.systemName)}" ${canEdit?'':'disabled'}></div>
-     <div class="settings-field"><label>Application version</label><input id="cfg_version" value="${esc(cfg.applicationVersion)}" ${canEdit?'':'disabled'}></div>
-    </div>
-   </section>
-
-   <section class="settings-card">
-    <h3>Inventory controls</h3>
-    <p class="hint">Default values for the inventory workflow. Supported units follow the server validation model.</p>
-    <div class="settings-fields">
-     <div class="settings-field"><label>Default mass unit</label><select id="cfg_mass" ${canEdit?'':'disabled'}><option>g</option><option>kg</option><option>mg</option></select></div>
-     <div class="settings-field"><label>Default volume unit</label><select id="cfg_vol" ${canEdit?'':'disabled'}><option>mL</option><option>L</option></select></div>
-     <div class="settings-field"><label>Expiry alert lead time (days)</label><input id="cfg_expiry" type="number" min="0" max="3650" value="${esc(cfg.expiryAlertDays)}" ${canEdit?'':'disabled'}></div>
-     <div class="settings-field"><label>Low-stock alerts</label><div class="inline-check"><input id="cfg_low" type="checkbox" ${cfg.lowStockAlerts?'checked':''} ${canEdit?'':'disabled'}><span>Enable inventory low-stock signalling</span></div></div>
-    </div>
-   </section>
-
-   <section class="settings-card">
-    <h3>Quality & water-treatment references</h3>
-    <p class="hint">Project reference values only. Verify against the applicable current EWASCO/KEBS/WHO/NEMA requirements before using them as compliance limits.</p>
-    <div class="settings-fields">
-     <div class="settings-field"><label>Turbidity reference (NTU)</label><input id="cfg_nt" type="number" step="0.01" min="0" value="${esc(cfg.turbidityReferenceNTU)}" ${canEdit?'':'disabled'}></div>
-     <div class="settings-field"><label>Free chlorine target (mg/L)</label><input id="cfg_cl" type="number" step="0.001" min="0" value="${esc(cfg.freeChlorineTargetMgL)}" placeholder="Enter verified target" ${canEdit?'':'disabled'}></div>
-     <div class="settings-field"><label>pH minimum</label><input id="cfg_phmin" type="number" step="0.1" value="${esc(cfg.pHMin)}" ${canEdit?'':'disabled'}></div>
-     <div class="settings-field"><label>pH maximum</label><input id="cfg_phmax" type="number" step="0.1" value="${esc(cfg.pHMax)}" ${canEdit?'':'disabled'}></div>
-     <div class="settings-field span2"><label>Jar-test selection rule</label><textarea id="cfg_jar" ${canEdit?'':'disabled'}>${esc(cfg.jarTestCriterion)}</textarea></div>
-     <div class="settings-field span2"><label>Chlorine-demand selection rule</label><textarea id="cfg_cd" ${canEdit?'':'disabled'}>${esc(cfg.chlorineDemandCriterion)}</textarea></div>
-    </div>
-   </section>
-
-   <section class="settings-card">
-    <h3>System readiness</h3>
-    <p class="hint">Live checks against the deployed production service.</p>
-    <div id="settingsHealth">
-      <div class="status-line"><span class="status-dot"><i></i>Checking application…</span><span class="badge">Checking</span></div>
-    </div>
-    <div class="warning-box" style="margin-top:10px">SDS files are stored in the application upload path. The database is persistent, but this deployment does not currently show a dedicated persistent volume for SDS storage.</div>
-    <button id="settingsHealthBtn" type="button" class="btn" style="margin-top:10px">Recheck system</button>
-   </section>
-
-   <section class="settings-card">
-    <h3>Security & access</h3>
-    <p class="hint">Current production security characteristics derived from the deployed application.</p>
-    <div class="status-line"><span>Session cookie</span><span class="badge">HttpOnly · SameSite=Strict · Secure</span></div>
-    <div class="status-line"><span>Session lifetime</span><span class="badge">8 hours</span></div>
-    <div class="status-line"><span>CSRF protection</span><span class="badge">Enabled</span></div>
-    <div class="status-line"><span>Login rate limit</span><span class="badge">10 / 15 min</span></div>
-    <div class="status-line"><span>Your access</span><span class="badge">${esc(state.user?.role||'—')}</span></div>
-   </section>
-
-   <section class="settings-card full">
-    <h3>Enabled project modules</h3>
-    <p class="hint">The production API currently exposes these entities as the core system-of-record modules.</p>
-    <div class="setting-pills">${modules.map(x=>`<span class="setting-pill">${esc(x)}</span>`).join('')}</div>
-   </section>
-
-   <section class="settings-card full">
-    <h3>Role model</h3>
-    <p class="hint">This mirrors the server-side permission model; UI controls do not replace backend enforcement.</p>
-    <div class="table-wrap">
-     <table class="settings-table"><thead><tr><th>Role</th><th>Operational scope</th><th>Additional capabilities</th></tr></thead><tbody>
-      ${roles.map(r=>`<tr${r[0]===state.user?.role?' style="background:#102235"':''}><td><b>${esc(r[0])}</b></td><td>${esc(r[1])}</td><td>${esc(r[2])}</td></tr>`).join('')}
-     </tbody></table>
-    </div>
-   </section>
-
-   <section class="settings-card full">
-    <h3>Deployment profile</h3>
-    <div class="settings-grid" style="margin-top:10px">
-     <div class="settings-card read-only">
-      <div class="status-line"><span>Platform</span><span class="badge">Railway</span></div>
-      <div class="status-line"><span>Environment</span><span class="badge">production</span></div>
-      <div class="status-line"><span>Source branch</span><span class="badge">main</span></div>
-     </div>
-     <div class="settings-card read-only">
-      <div class="status-line"><span>Health endpoint</span><span class="badge">/healthz</span></div>
-      <div class="status-line"><span>Public host</span><span class="badge">ewasco-cheminventory-production.up.railway.app</span></div>
-      <div class="status-line"><span>Database</span><span class="badge">PostgreSQL</span></div>
-     </div>
-    </div>
-   </section>
-
-   <section class="settings-card full">
-    <div class="settings-actions">
-     <span class="muted" style="margin-right:auto;align-self:center">${canEdit?'Changes are saved centrally for the EWASCO organisation.':'Read-only for your current role.'}</span>
-     <button id="settingsReset" type="button" class="btn">Discard changes</button>
-     ${canEdit?'<button type="submit" class="btn primary">Save Configuration</button>':''}
-    </div>
-    <p id="settingsMsg" class="muted" style="margin:10px 0 0"></p>
-   </section>
-  </form>
- </div>`;
-
- $('cfg_mass').value=cfg.defaultMassUnit;
- $('cfg_vol').value=cfg.defaultVolumeUnit;
-
- $('settingsReset').onclick=()=>renderSettings();
- $('settingsHealthBtn').onclick=checkSettingsHealth;
- $('settingsForm').onsubmit=async e=>{
-   e.preventDefault();
-   if(!canEdit)return;
-   const next={...cfg,
-     organizationName:$('cfg_org').value.trim()||'EWASCO',
-     siteName:$('cfg_site').value.trim(),
-     systemName:$('cfg_system').value.trim()||'EWASCO Chemical Inventory',
-     applicationVersion:$('cfg_version').value.trim()||'v2',
-     defaultMassUnit:$('cfg_mass').value,
-     defaultVolumeUnit:$('cfg_vol').value,
-     expiryAlertDays:Math.max(0,Number($('cfg_expiry').value||0)),
-     lowStockAlerts:$('cfg_low').checked,
-     turbidityReferenceNTU:Math.max(0,Number($('cfg_nt').value||0)),
-     freeChlorineTargetMgL:$('cfg_cl').value,
-     pHMin:Number($('cfg_phmin').value||0),
-     pHMax:Number($('cfg_phmax').value||0),
-     jarTestCriterion:$('cfg_jar').value.trim(),
-     chlorineDemandCriterion:$('cfg_cd').value.trim()
-   };
-   try{
-     const result=saved.id?await EWASCO_API.update('settings',saved.id,next,saved._version||0):await EWASCO_API.create('settings',next);
-     state.records=[result];
-     renderSettings();
-     $('settingsMsg').textContent='Configuration saved successfully.';
-     $('settingsMsg').style.color='var(--accent)';
-   }catch(err){
-     $('settingsMsg').textContent=err.message;
-     $('settingsMsg').style.color='var(--danger)';
-   }
+ <div class="kpis">
+  <div class="kpi"><div class="n">${sampleCounts.REGISTERED||0}</div><div class="l">Registered samples</div></div>
+  <div class="kpi"><div class="n">${(testCounts.PLANNED||0)+(testCounts.ASSIGNED||0)}</div><div class="l">Tests waiting assignment</div></div>
+  <div class="kpi"><div class="n">${testCounts.RESULT_ENTERED||0}</div><div class="l">Results awaiting review</div></div>
+  <div class="kpi"><div class="n">${results.failed||0}</div><div class="l">Specification failures</div></div>
+ </div>
+ <div class="split section-card">
+  <section class="card"><h3>Controlled workflow</h3><p class="note">Register → receive → analyse → review → approve → report → archive. Approved results are locked and remain traceable through the audit trail.</p><div class="inline"><span class="badge">PostgreSQL</span><span class="badge">RBAC</span><span class="badge">CSRF</span><span class="badge">Re-auth approval</span><span class="badge">Separation of duties</span></div></section>
+  <section class="card"><h3>Design reference</h3><p class="note">The core follows capabilities documented by leading LIMS platforms: sample traceability, sampling-point management, controlled results entry, review/approval, auditability and water-laboratory workflow. Exact regulatory limits and methods are configuration data, not hard-coded assumptions.</p></section>
+ </div>
+ <div class="card section-card"><h3>Current LIMS status</h3><div class="table-wrap"><table class="table"><thead><tr><th>Stage</th><th>Count</th></tr></thead><tbody>${d.samples.map(x=>'<tr><td>'+esc(x.status)+'</td><td>'+x.count+'</td></tr>').join('')||'<tr><td colspan="2">No samples yet.</td></tr>'}</tbody></table></div></div>`;
+}
+async function ensureLookups(){if(!state.cache.points)state.cache.points=await EWASCO_API.samplingPoints();if(!state.cache.methods)state.cache.methods=await EWASCO_API.limsMethods();if(!state.cache.specs)state.cache.specs=await EWASCO_API.limsSpecifications()}
+function isoFromInput(v){return v?new Date(v).toISOString():null}
+async function renderSamples(){
+ const rows=await EWASCO_API.limsSamples();state.cache.samples=rows;
+ $('content').innerHTML=`
+ <div class="toolbar"><button class="btn primary" id="newSample" ${state.user.role==='Storekeeper'?'disabled':''}>Register sample</button><select id="sampleFilter" class="input" style="max-width:220px"><option value="">All statuses</option>${['REGISTERED','RECEIVED','IN_ANALYSIS','PENDING_REVIEW','APPROVED','REPORTED','ARCHIVED','CANCELLED'].map(s=>'<option>'+s+'</option>').join('')}</select><button class="btn" id="sampleReload">Refresh</button></div>
+ <div id="sampleTable"></div>`;
+ const draw=rows2=>{const body=rows2.map(r=>`<tr class="clickable" data-sample="${r.id}"><td><b>${esc(r.sample_no)}</b></td><td>${esc(r.sample_type)}</td><td>${esc(r.sampling_point_name||'—')}</td><td><span class="badge">${esc(r.status)}</span></td><td>${r.approved_test_count}/${r.test_count}</td><td>${fmt(r.received_at)}</td></tr>`).join('');$('sampleTable').innerHTML='<div class="table-wrap"><table class="table"><thead><tr><th>Sample</th><th>Type</th><th>Sampling point</th><th>Status</th><th>Approved tests</th><th>Received</th></tr></thead><tbody>'+ (body||'<tr><td colspan="6" class="empty">No samples registered.</td></tr>')+'</tbody></table></div>';document.querySelectorAll('[data-sample]').forEach(x=>x.onclick=()=>showSample(x.dataset.sample))};
+ $('sampleFilter').onchange=()=>draw(rows.filter(r=>!$('sampleFilter').value||r.status===$('sampleFilter').value));$('sampleReload').onclick=()=>renderSamples();draw(rows);$('newSample').onclick=()=>openSampleForm();
+}
+async function openSampleForm(){
+ await ensureLookups();
+ const html=`
+ <div class="overlay" id="modal"><div class="card modal">
+  <div class="bar"><h3>Register analytical sample</h3><span class="spacer"></span><button class="btn ghost" id="close">Close</button></div>
+  <div class="form-grid">
+   <label>Sample type<input id="f_type" class="input" placeholder="e.g. Routine water sample" required></label>
+   <label>Matrix<input id="f_matrix" class="input" placeholder="e.g. Drinking water"></label>
+   <label>Sampling point<select id="f_point" class="input"><option value="">Unspecified</option>${state.cache.points.filter(p=>p.active).map(p=>'<option value="'+p.id+'">'+esc(p.code)+' — '+esc(p.name)+'</option>').join('')}</select></label>
+   <label>Collected at<input id="f_collected" class="input" type="datetime-local"></label>
+   <label class="span2">Notes<textarea id="f_notes" class="input" placeholder="Collection/receipt notes"></textarea></label>
+   <div class="span2"><div class="muted" style="margin-bottom:6px">Tests to assign <span class="badge">at least one</span></div><div class="checklist">${state.cache.methods.filter(m=>m.active).map(m=>'<label class="check"><input type="checkbox" value="'+m.id+'" data-method> <span><b>'+esc(m.code)+' — '+esc(m.name)+'</b><br><span class="note">'+esc(m.analyte)+' · '+esc(m.result_type)+' · '+esc(m.default_unit||'no default unit')+'</span></span></label>').join('')||'<div class="empty">No active test methods have been configured.</div>'}</div></div>
+  </div>
+  <p id="fm_err" class="error"></p><div class="bar"><span class="spacer"></span><button class="btn primary" id="saveSample">Register sample</button></div>
+ </div></div>`;
+ $('content').insertAdjacentHTML('beforeend',html);$('close').onclick=()=>$('modal').remove();$('saveSample').onclick=async()=>{
+   try{const tests=[...document.querySelectorAll('[data-method]:checked')].map(x=>({methodId:x.value,priority:100}));if(!tests.length)throw Error('Select at least one test method');const payload={sampleType:$('f_type').value.trim(),matrix:$('f_matrix').value.trim()||null,samplingPointId:$('f_point').value||null,collectedAt:isoFromInput($('f_collected').value),notes:$('f_notes').value.trim()||null,tests};if(!payload.sampleType)throw Error('Sample type is required');const r=await EWASCO_API.createLimsSample(payload);$('modal').remove();toast('Sample '+r.sample_no+' registered',true);await renderSamples()}catch(e){$('fm_err').textContent=e.message}
  };
- checkSettingsHealth();
- async function checkSettingsHealth(){
-   const el=$('settingsHealth'); if(!el)return;
-   el.innerHTML='<div class="status-line"><span class="status-dot"><i></i>Checking application and database…</span><span class="badge">Checking</span></div>';
-   try{
-     const r=await fetch('/readyz',{credentials:'include'});
-     if(!r.ok)throw Error('Database readiness check failed');
-     el.innerHTML='<div class="status-line"><span class="status-dot ok"><i></i>Application + database ready</span><span class="badge">Healthy</span></div>';
-   }catch(e){
-     el.innerHTML=`<div class="status-line"><span class="status-dot"><i></i>${esc(e.message)}</span><span class="badge">Attention</span></div>`;
-   }
- }
+}
+async function showSample(id){
+ const s=await EWASCO_API.limsSample(id);
+ $('content').innerHTML=`
+ <div class="bar"><button class="btn" id="back">← Samples</button><span class="spacer"></span><span class="badge">${esc(s.status)}</span></div>
+ <div class="split">
+  <section class="card"><h3>${esc(s.sample_no)}</h3><div class="note">${esc(s.sample_type)} · ${esc(s.matrix||'Matrix not recorded')}</div><div class="note" style="margin-top:8px">Point: ${esc(s.sampling_point_name||'Not specified')} · Collected: ${fmt(s.collected_at)} · Received: ${fmt(s.received_at)}</div></section>
+  <section class="card"><h3>Lifecycle</h3><div class="inline"><button class="btn" id="receive" ${s.status==='REGISTERED'?'':'disabled'}>Mark received</button><button class="btn" id="cancel" ${['REGISTERED','RECEIVED','IN_ANALYSIS','PENDING_REVIEW'].includes(s.status)?'':'disabled'}>Cancel sample</button></div><p class="note">Approvals are server controlled; UI state does not override workflow permissions.</p></section>
+ </div>
+ <section class="card section-card"><h3>Assigned tests & results</h3><div class="table-wrap"><table class="table"><thead><tr><th>Method</th><th>Status</th><th>Result</th><th>Flag</th><th>Author</th><th>Actions</th></tr></thead><tbody>${s.tests.map(t=>{
+  const val=t.value_numeric??t.value_text??'—';
+  let actions='';
+  if(!t.result_id&&!['APPROVED','CANCELLED'].includes(s.status)&&state.user.role!=='Storekeeper')actions+='<button class="btn" data-claim="'+t.id+'">Claim / enter</button> ';
+  if(t.result_id&&t.result_status==='ENTERED'&&canReview())actions+='<button class="btn" data-review="'+t.result_id+'">Review</button> ';
+  if(t.result_id&&t.result_status==='REVIEWED'&&canApprove())actions+='<button class="btn primary" data-approve="'+t.result_id+'">Approve</button>';
+  return '<tr><td><b>'+esc(t.method_code)+'</b><br><span class="note">'+esc(t.method_name)+'</span></td><td><span class="badge">'+esc(t.status)+'</span></td><td>'+esc(val)+(t.unit?' '+esc(t.unit):'')+'</td><td><span class="badge '+(t.result_flag==='FAIL'?'bad':t.result_flag==='PASS'?'good':'')+'">'+esc(t.result_flag||'—')+'</span></td><td>'+esc(t.entered_by||'—')+'</td><td>'+actions+'</td></tr>'}) .join('')+'</tbody></table></div></section>`;
+ $('back').onclick=()=>renderSamples();
+ $('receive').onclick=async()=>{try{await EWASCO_API.updateLimsSampleStatus(id,'RECEIVED');await showSample(id)}catch(e){alert(e.message)}};
+ $('cancel').onclick=async()=>{if(!confirm('Cancel this sample?'))return;try{await EWASCO_API.updateLimsSampleStatus(id,'CANCELLED');await showSample(id)}catch(e){alert(e.message)}};
+ document.querySelectorAll('[data-claim]').forEach(b=>b.onclick=()=>enterResult(b.dataset.claim,s));
+ document.querySelectorAll('[data-review]').forEach(b=>b.onclick=async()=>{try{await EWASCO_API.reviewLimsResult(b.dataset.review);await showSample(id)}catch(e){alert(e.message)}});
+ document.querySelectorAll('[data-approve]').forEach(b=>b.onclick=async()=>{const p=prompt('Re-enter your password to approve this result:');if(p===null)return;try{await EWASCO_API.approveLimsResult(b.dataset.approve,p);await showSample(id)}catch(e){alert(e.message)}});
+}
+async function enterResult(testId,sample){const t=sample.tests.find(x=>x.id===testId);if(!t)return;const raw=prompt('Enter result for '+t.method_name+' ('+t.result_type+(t.default_unit?' · '+t.default_unit:'')+'):');if(raw===null)return;const v=raw.trim();if(!v)return alert('Result cannot be blank');try{const payload={rawValue:v,unit:t.default_unit||null};if(t.result_type==='NUMERIC'){const n=Number(v);if(!Number.isFinite(n))throw Error('Numeric result required');payload.valueNumeric=n}else payload.valueText=v;if(t.instrument_reference)payload.instrumentReference=t.instrument_reference;await EWASCO_API.enterLimsResult(testId,payload);await showSample(sample.id)}catch(e){alert(e.message)}}
+
+async function renderWorklist(){
+ const rows=await EWASCO_API.limsWorklist();state.cache.worklist=rows;
+ $('content').innerHTML=`<div class="toolbar"><select id="wlFilter" class="input" style="max-width:220px"><option value="">All statuses</option>${['PLANNED','ASSIGNED','IN_PROGRESS','RESULT_ENTERED','REVIEWED','APPROVED'].map(s=>'<option>'+s+'</option>').join('')}</select><button class="btn" id="wlRefresh">Refresh</button></div><div id="wlTable"></div>`;
+ const draw=rs=>{$('wlTable').innerHTML='<div class="table-wrap"><table class="table"><thead><tr><th>Sample</th><th>Point</th><th>Method</th><th>Status</th><th>Due</th><th>Actions</th></tr></thead><tbody>'+ (rs.map(r=>'<tr><td><b>'+esc(r.sample_no)+'</b></td><td>'+esc(r.sampling_point_code||'—')+'</td><td>'+esc(r.method_code)+'<br><span class="note">'+esc(r.analyte)+'</span></td><td><span class="badge">'+esc(r.status)+'</span></td><td>'+fmt(r.due_at)+'</td><td><button class="btn" data-wl="'+r.id+'">Open sample</button></td></tr>').join('')||'<tr><td colspan="6" class="empty">No worklist items.</td></tr>')+'</tbody></table></div>';document.querySelectorAll('[data-wl]').forEach(b=>b.onclick=async()=>{const r=rows.find(x=>x.id===b.dataset.wl);await showSample(r.sample_id)})};
+ $('wlFilter').onchange=()=>draw(rows.filter(r=>!$('wlFilter').value||r.status===$('wlFilter').value));$('wlRefresh').onclick=renderWorklist;draw(rows);
+}
+async function renderPoints(){
+ const rows=await EWASCO_API.samplingPoints();state.cache.points=rows;
+ $('content').innerHTML=`<div class="toolbar">${canSetup()?'<button class="btn primary" id="addPoint">Add sampling point</button>':''}<button class="btn" id="rp">Refresh</button></div><div class="table-wrap"><table class="table"><thead><tr><th>Code</th><th>Name</th><th>Category</th><th>Location</th><th>State</th></tr></thead><tbody>${rows.map(r=>'<tr><td>'+esc(r.code)+'</td><td>'+esc(r.name)+'</td><td>'+esc(r.category)+'</td><td>'+esc(r.location||'—')+'</td><td><span class="badge '+(r.active?'good':'')+'">'+(r.active?'Active':'Inactive')+'</span></td></tr>').join('')||'<tr><td colspan="5" class="empty">No sampling points configured.</td></tr>'}</tbody></table></div>`;
+ if(canSetup())$('addPoint').onclick=async()=>{const code=prompt('Sampling point code:');if(!code)return;const name=prompt('Sampling point name:');if(!name)return;const category=prompt('Category:','GENERAL')||'GENERAL';const location=prompt('Location (optional):')||null;try{await EWASCO_API.createSamplingPoint({code,name,category,location});await renderPoints()}catch(e){alert(e.message)}};$('rp').onclick=renderPoints;
+}
+async function renderMethods(){
+ const rows=await EWASCO_API.limsMethods();state.cache.methods=rows;
+ $('content').innerHTML=`<div class="toolbar">${canSetup()?'<button class="btn primary" id="addMethod">Add test method</button>':''}<button class="btn" id="rm">Refresh</button></div><div class="table-wrap"><table class="table"><thead><tr><th>Code</th><th>Name</th><th>Analyte</th><th>Result type</th><th>Unit</th><th>Reference</th><th>State</th></tr></thead><tbody>${rows.map(r=>'<tr><td>'+esc(r.code)+'</td><td>'+esc(r.name)+'</td><td>'+esc(r.analyte)+'</td><td>'+esc(r.result_type)+'</td><td>'+esc(r.default_unit||'—')+'</td><td>'+esc((r.method_reference||'—')+' '+(r.method_version?'v'+r.method_version:''))+'</td><td><span class="badge '+(r.active?'good':'')+'">'+(r.active?'Active':'Inactive')+'</span></td></tr>').join('')||'<tr><td colspan="7" class="empty">No test methods configured. Do not add methods or references you have not verified.</td></tr>'}</tbody></table></div>`;
+ if(canSetup())$('addMethod').onclick=async()=>{const code=prompt('Method code:');if(!code)return;const name=prompt('Method name:');if(!name)return;const analyte=prompt('Analyte / parameter:');if(!analyte)return;const resultType=prompt('Result type: NUMERIC, TEXT or QUALITATIVE','NUMERIC')?.toUpperCase();if(!['NUMERIC','TEXT','QUALITATIVE'].includes(resultType))return alert('Invalid result type');const defaultUnit=prompt('Default unit (optional):')||null;const ref=prompt('Method reference (optional, verified source only):')||null;const ver=prompt('Method version (optional):')||null;try{await EWASCO_API.createLimsMethod({code,name,analyte,resultType,defaultUnit,methodReference:ref,methodVersion:ver});await renderMethods()}catch(e){alert(e.message)}};$('rm').onclick=renderMethods;
+}
+async function renderSpecs(){
+ const rows=await EWASCO_API.limsSpecifications();state.cache.specs=rows;
+ $('content').innerHTML=`<div class="toolbar"><span class="note">No regulatory limits are preloaded here. Add only verified organisational or external specifications and record the source.</span>${canSetup()?'<button class="btn primary" id="addSpec">Add specification</button>':''}<button class="btn" id="rs">Refresh</button></div><div class="table-wrap"><table class="table"><thead><tr><th>Code</th><th>Parameter</th><th>Rule</th><th>Unit</th><th>Source</th><th>State</th></tr></thead><tbody>${rows.map(r=>'<tr><td>'+esc(r.code)+'</td><td>'+esc(r.parameter)+'</td><td>'+esc(r.operator)+' '+esc(r.lower_limit??'')+(r.operator==='BETWEEN'?' to '+esc(r.upper_limit):'')+'</td><td>'+esc(r.target_unit||'—')+'</td><td>'+esc(r.source_reference||'Not recorded')+'</td><td><span class="badge '+(r.active?'good':'')+'">'+(r.active?'Active':'Inactive')+'</span></td></tr>').join('')||'<tr><td colspan="6" class="empty">No specifications configured.</td></tr>'}</tbody></table></div>`;
+ if(canSetup())$('addSpec').onclick=async()=>{const code=prompt('Specification code:');if(!code)return;const name=prompt('Specification name:');if(!name)return;const parameter=prompt('Parameter:');if(!parameter)return;const op=(prompt('Operator: BETWEEN, LT, LTE, GT, GTE, EQ, NEQ or IS_NOT_NULL','BETWEEN')||'').toUpperCase();if(!['BETWEEN','LT','LTE','GT','GTE','EQ','NEQ','IS_NOT_NULL'].includes(op))return alert('Invalid operator');let lo=null,hi=null;if(op!=='IS_NOT_NULL'){lo=Number(prompt('Lower/primary limit:','0'));if(!Number.isFinite(lo))return alert('Invalid limit');if(op==='BETWEEN'){hi=Number(prompt('Upper limit:','0'));if(!Number.isFinite(hi))return alert('Invalid upper limit')}}const unit=prompt('Target unit (optional):')||null;const source=prompt('Source / document reference:')||null;try{await EWASCO_API.createLimsSpecification({code,name,parameter,operator:op,lowerLimit:lo,upperLimit:hi,targetUnit:unit,sourceReference:source});await renderSpecs()}catch(e){alert(e.message)}};$('rs').onclick=renderSpecs;
 }
 
-function renderRecords(){const q=$('search').value.toLowerCase();const rows=state.records.filter(r=>JSON.stringify(r).toLowerCase().includes(q));if(!rows.length){$('content').innerHTML='<p class="muted">No records found.</p>';return}const keys=[...new Set(rows.flatMap(r=>Object.keys(r).filter(k=>!k.startsWith('_'))))].slice(0,7);$('content').innerHTML=`<div class="table-wrap"><table class="table"><thead><tr>${keys.map(k=>`<th>${esc(k)}</th>`).join('')}<th>Actions</th></tr></thead><tbody>${rows.map(r=>`<tr>${keys.map(k=>`<td>${esc(typeof r[k]==='object'?JSON.stringify(r[k]):r[k])}</td>`).join('')}<td><button class="btn" data-edit="${esc(r.id)}">Edit</button> <button class="btn danger" data-delete="${esc(r.id)}">Delete</button></td></tr>`).join('')}</tbody></table></div>`;$('content').querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>edit(b.dataset.edit));$('content').querySelectorAll('[data-delete]').forEach(b=>b.onclick=()=>remove(b.dataset.delete))}
-function edit(id=''){const record=id?state.records.find(r=>r.id===id):{id:`${state.entity.slice(0,-1).toUpperCase()}-${crypto.randomUUID().slice(0,8)}`};const value=JSON.stringify(record,null,2);$('content').innerHTML=`<label>Record JSON<textarea id="recordJson" class="input json">${esc(value)}</textarea></label><div class="bar"><button id="cancel" class="btn">Cancel</button><button id="save" class="btn primary">Save</button></div><p id="formError" class="error"></p>`;$('cancel').onclick=renderRecords;$('save').onclick=async()=>{try{const next=JSON.parse($('recordJson').value);if(!next.id)throw Error('Record id is required');const result=id?await EWASCO_API.update(state.entity,next.id,next,next._version||0):await EWASCO_API.create(state.entity,next);state.records=state.records.filter(r=>r.id!==result.id).concat(result);renderRecords()}catch(e){$('formError').textContent=e.message}}}
-async function remove(id){if(!confirm('Delete this record permanently?'))return;try{await EWASCO_API.remove(state.entity,id);state.records=state.records.filter(r=>r.id!==id);renderRecords()}catch(e){alert(e.message)}}
-$('loginForm').onsubmit=async e=>{e.preventDefault();try{const x=await EWASCO_API.login($('username').value,$('password').value);state.user=x.user;showApp();await select(state.entity)}catch(e){message(e.message)}};
-$('logout').onclick=async()=>{try{await EWASCO_API.logout()}finally{location.reload()}};$('backup').onclick=async()=>{try{const x=await EWASCO_API.backup();const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(x,null,2)],{type:'application/json'}));a.download=`ewasco-backup-${new Date().toISOString().slice(0,10)}.json`;a.click()}catch(e){alert(e.message)}};$('refresh').onclick=()=>select(state.entity);$('newRecord').onclick=()=>edit();$('search').oninput=renderRecords;boot();
+async function renderSecurity(){
+ const users=await EWASCO_API.users().catch(()=>null);
+ $('content').innerHTML=`
+ <div class="security-grid">
+  <section class="card"><h3>Account security</h3><p class="note">Password changes require the current password. Other active sessions are revoked after a successful change.</p><form id="pwForm"><label>Current password<input id="pw_current" class="input" type="password" required></label><label>New password<input id="pw_new" class="input" type="password" minlength="12" required></label><button class="btn primary">Change password</button><p id="pwMsg" class="error"></p></form></section>
+  <section class="card"><h3>Security controls</h3><div class="note">Authenticated PostgreSQL-backed sessions · HttpOnly + Secure + SameSite=Strict cookie · CSRF protection · login throttling + account lockout · organisation-scoped data access · generic server errors · controlled result approval with password re-authentication.</div></section>
+ </div>
+ ${canUsers()?'<section class="card section-card"><div class="bar"><h3>User administration</h3><span class="spacer"></span><button class="btn primary" id="addUser">Create user</button></div><div class="table-wrap"><table class="table"><thead><tr><th>Username</th><th>Role</th><th>State</th><th>Last login</th><th>Actions</th></tr></thead><tbody>'+((users||[]).map(u=>'<tr><td>'+esc(u.username)+'</td><td>'+esc(u.role)+'</td><td><span class="badge '+(u.disabled?'bad':'good')+'">'+(u.disabled?'Disabled':'Active')+'</span></td><td>'+fmt(u.last_login_at)+'</td><td><button class="btn" data-user="'+u.id+'">Manage</button></td></tr>').join('')||'')+'</tbody></table></div></section>':''}
+ <div class="warning section-card">Security note: approval is intentionally a separate action from result entry. The server rejects self-review/self-approval and locks approved results against ordinary edits.</div>`;
+ $('pwForm').onsubmit=async e=>{e.preventDefault();try{await EWASCO_API.changePassword($('pw_current').value,$('pw_new').value);$('pwMsg').textContent='Password changed; other active sessions were revoked.';$('pwMsg').className='success'}catch(err){$('pwMsg').textContent=err.message}};
+ if(canUsers()){$('addUser').onclick=()=>openUserForm();document.querySelectorAll('[data-user]').forEach(b=>b.onclick=()=>manageUser((users||[]).find(u=>u.id===b.dataset.user)))}
+}
+function openUserForm(){
+ const html='<div class="overlay" id="userModal"><div class="card modal"><div class="bar"><h3>Create user</h3><span class="spacer"></span><button class="btn" id="uclose">Close</button></div><label>Username<input id="un" class="input" autocomplete="off"></label><label>Password<input id="up" class="input" type="password" minlength="12"></label><label>Role<select id="ur" class="input">'+['Administrator','Laboratory Manager','Analyst/Chemist','Storekeeper'].map(x=>'<option>'+x+'</option>').join('')+'</select></label><p id="ue" class="error"></p><div class="bar"><span class="spacer"></span><button class="btn primary" id="usave">Create</button></div></div></div>';
+ document.body.insertAdjacentHTML('beforeend',html);$('uclose').onclick=()=>$('userModal').remove();$('usave').onclick=async()=>{try{const r=await EWASCO_API.createUser({username:$('un').value,password:$('up').value,role:$('ur').value,disabled:false});$('userModal').remove();toast('Created '+r.username,true);await renderSecurity()}catch(e){$('ue').textContent=e.message}}
+}
+function manageUser(u){if(!u)return;const changeRole=prompt('Role for '+u.username+' (Administrator / Laboratory Manager / Analyst/Chemist / Storekeeper):',u.role)||u.role;const reset=confirm('Reset this user password?');const pw=reset?prompt('New password (12+ chars, upper/lower/number):'):null;const disable=confirm('Disable this user? Cancel here to leave current state');const payload={role:changeRole,disabled:disable};if(reset&&pw)payload.password=pw;EWASCO_API.updateUser(u.id,payload).then(()=>renderSecurity()).catch(e=>alert(e.message))}
+async function renderLegacy(entity){
+ if(entity==='audit'){const rows=await fetch('/api/audit',{credentials:'include'}).then(async r=>{if(!r.ok)throw Error((await r.json()).error||'Forbidden');return r.json()});$('content').innerHTML='<div class="table-wrap"><table class="table"><thead><tr><th>Time</th><th>User</th><th>Action</th><th>Entity</th><th>Record</th><th>Data</th></tr></thead><tbody>'+rows.map(r=>'<tr><td>'+fmt(r.created_at)+'</td><td>'+esc(r.username||'system')+'</td><td>'+esc(r.action)+'</td><td>'+esc(r.entity)+'</td><td>'+esc(r.record_id||'—')+'</td><td><code>'+esc(JSON.stringify(r.data||{}))+'</code></td></tr>').join('')+'</tbody></table></div>';return}
+ const rows=await EWASCO_API.list(entity);
+ $('content').innerHTML=`
+ <div class="toolbar"><button class="btn primary" id="legacyNew">New record</button><input id="legacySearch" class="input" placeholder="Search JSON…" style="max-width:340px"><span class="spacer"></span><span class="note">Legacy modules remain API-backed during the LIMS migration.</span></div>
+ <div id="legacyTable"></div>`;
+ const draw=()=>{const q=$('legacySearch').value.toLowerCase(),rs=rows.filter(r=>JSON.stringify(r).toLowerCase().includes(q));const keys=[...new Set(rs.flatMap(r=>Object.keys(r).filter(k=>!k.startsWith('_'))))].slice(0,7);$('legacyTable').innerHTML='<div class="table-wrap"><table class="table"><thead><tr>'+keys.map(k=>'<th>'+esc(k)+'</th>').join('')+'<th>Actions</th></tr></thead><tbody>'+rs.map(r=>'<tr>'+keys.map(k=>'<td>'+esc(typeof r[k]==='object'?JSON.stringify(r[k]):r[k])+'</td>').join('')+'<td><button class="btn" data-edit="'+esc(r.id)+'">Edit</button></td></tr>').join('')+'</tbody></table></div>'};$('legacySearch').oninput=draw;draw();$('legacyNew').onclick=()=>legacyEdit(entity,rows,null);document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>legacyEdit(entity,rows,b.dataset.edit));
+}
+function legacyEdit(entity,rows,id){const rec=id?rows.find(r=>r.id===id):{id:entity.toUpperCase()+'-'+crypto.randomUUID().slice(0,8)};const html='<div class="overlay" id="legacyModal"><div class="card modal"><div class="bar"><h3>'+esc(id?'Edit':'Create')+' '+esc(entity)+'</h3><span class="spacer"></span><button class="btn" id="lc">Close</button></div><textarea id="lj" class="input" style="min-height:300px">'+esc(JSON.stringify(rec,null,2))+'</textarea><p id="le" class="error"></p><div class="bar"><span class="spacer"></span><button class="btn primary" id="ls">Save</button></div></div></div>';document.body.insertAdjacentHTML('beforeend',html);$('lc').onclick=()=>$('legacyModal').remove();$('ls').onclick=async()=>{try{const next=JSON.parse($('lj').value);const r=id?await EWASCO_API.update(entity,id,next,next._version||0):await EWASCO_API.create(entity,next);$('legacyModal').remove();toast('Saved '+r.id,true);await renderLegacy(entity)}catch(e){$('le').textContent=e.message}}}
+$('loginForm').onsubmit=async e=>{e.preventDefault();try{const x=await EWASCO_API.login($('username').value,$('password').value);state.user=x.user;showApp();await go('dashboard')}catch(e){$('loginError').textContent=e.message}};
+$('logout').onclick=async()=>{try{await EWASCO_API.logout()}finally{location.reload()}};
+boot();
 </script>
-</body></html>
+</body>
+</html>
