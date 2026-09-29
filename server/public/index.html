@@ -4,7 +4,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ChemInventory / EWASCO v2</title>
 <style>
-:root{--bg:#071321;--panel:#0d1b2a;--panel2:#102235;--line:#1d3449;--text:#e8f1f8;--muted:#91a6b8;--accent:#42d392;--danger:#ff6273}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px system-ui,sans-serif}button,input,textarea,select{font:inherit}button{cursor:pointer}.hidden{display:none!important}.wrap{max-width:1400px;margin:auto;padding:20px}.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px}.login{min-height:100vh;display:grid;place-items:center}.login .card{width:min(420px,100%)}h1,h2,h3{margin-top:0}.muted{color:var(--muted)}label{display:grid;gap:6px;margin:10px 0}.input{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px;color:var(--text)}.btn{border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:9px 12px;border-radius:8px}.primary{background:var(--accent);color:#062014;border-color:var(--accent)}.danger{color:#fff;background:var(--danger);border-color:var(--danger)}.bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:18px}.bar .spacer{flex:1}.grid{display:grid;grid-template-columns:240px 1fr;gap:18px}.nav{display:grid;gap:7px}.nav button{text-align:left}.nav button.active{border-color:var(--accent);color:var(--accent)}.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.table-wrap{overflow:auto}.table{width:100%;border-collapse:collapse}.table th,.table td{text-align:left;padding:10px;border-bottom:1px solid var(--line);vertical-align:top}.table th{color:var(--muted)}.json{min-height:260px;resize:vertical;font-family:ui-monospace,monospace}.error{color:var(--danger);min-height:20px}.badge{display:inline-block;border:1px solid var(--line);border-radius:99px;padding:3px 8px;color:var(--muted);font-size:12px}@media(max-width:800px){.grid{grid-template-columns:1fr}}
+:root{--bg:#071321;--panel:#0d1b2a;--panel2:#102235;--line:#1d3449;--text:#e8f1f8;--muted:#91a6b8;--accent:#42d392;--danger:#ff6273}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px system-ui,sans-serif}button,input,textarea,select{font:inherit}button{cursor:pointer}.hidden{display:none!important}.wrap{max-width:1400px;margin:auto;padding:20px}.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px}.login{min-height:100vh;display:grid;place-items:center}.login .card{width:min(420px,100%)}h1,h2,h3{margin-top:0}.muted{color:var(--muted)}label{display:grid;gap:6px;margin:10px 0}.input{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px;color:var(--text)}.btn{border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:9px 12px;border-radius:8px}.primary{background:var(--accent);color:#062014;border-color:var(--accent)}.danger{color:#fff;background:var(--danger);border-color:var(--danger)}.bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:18px}.bar .spacer{flex:1}.grid{display:grid;grid-template-columns:240px 1fr;gap:18px}.nav{display:grid;gap:7px}.nav button{text-align:left}.nav button.active{border-color:var(--accent);color:var(--accent)}.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.table-wrap{overflow:auto}.table{width:100%;border-collapse:collapse}.table th,.table td{text-align:left;padding:10px;border-bottom:1px solid var(--line);vertical-align:top}.table th{color:var(--muted)}.json{min-height:260px;resize:vertical;font-family:ui-monospace,monospace}.error{color:var(--danger);min-height:20px}.badge{display:inline-block;border:1px solid var(--line);border-radius:99px;padding:3px 8px;color:var(--muted);font-size:12px}.settings-page{display:grid;gap:14px}.settings-hero{background:linear-gradient(135deg,#0d1b2a,#102b32);border:1px solid #21445b;border-radius:14px;padding:18px}.settings-hero h3{margin:0 0 6px;font-size:18px}.settings-hero .sub{color:var(--muted);max-width:760px;line-height:1.5}.settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.settings-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:15px}.settings-card.full{grid-column:1/-1}.settings-card h3{margin:0 0 4px}.settings-card .hint{color:var(--muted);font-size:12px;margin:0 0 12px;line-height:1.45}.settings-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.settings-field{display:grid;gap:5px}.settings-field.span2{grid-column:span 2}.settings-field label{display:block;margin:0;color:var(--muted);font-size:11px}.settings-field input,.settings-field select,.settings-field textarea{width:100%;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:9px 10px}.settings-field textarea{min-height:74px;resize:vertical}.settings-field input:focus,.settings-field select:focus,.settings-field textarea:focus{outline:none;border-color:var(--accent)}.settings-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-top:12px}.settings-kpi{background:#091827;border:1px solid var(--line);border-radius:10px;padding:11px}.settings-kpi .label{font-size:10px;color:var(--muted)}.settings-kpi .value{margin-top:5px;font-weight:700}.status-line{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--line)}.status-line:last-child{border-bottom:0}.status-dot{display:inline-flex;align-items:center;gap:6px}.status-dot i{width:8px;height:8px;border-radius:50%;background:var(--danger);display:inline-block}.status-dot.ok i{background:var(--accent)}.settings-table{width:100%;border-collapse:collapse;font-size:12px}.settings-table th,.settings-table td{padding:8px 7px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}.settings-table th{color:var(--muted);font-weight:600}.setting-pills{display:flex;flex-wrap:wrap;gap:6px}.setting-pill{border:1px solid var(--line);background:#091827;border-radius:99px;padding:5px 9px;font-size:11px;color:#c9d8e4}.settings-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:12px;margin-top:4px}.read-only{opacity:.72}.warning-box{border:1px solid #6b5016;background:#2a210c;border-radius:9px;padding:10px;font-size:12px;color:#f3d28e}.success-box{border:1px solid #1d5b47;background:#0c2a20;border-radius:9px;padding:10px;font-size:12px;color:#9ce8c2}.inline-check{display:flex;align-items:center;gap:8px;min-height:38px;padding:8px 10px;background:var(--panel2);border:1px solid var(--line);border-radius:8px}.inline-check input{width:auto}.settings-meta{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}@media(max-width:1000px){.settings-grid{grid-template-columns:1fr}.settings-card.full{grid-column:auto}.settings-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:700px){.settings-fields{grid-template-columns:1fr}.settings-field.span2{grid-column:span 1}.settings-kpis{grid-template-columns:1fr}.settings-hero{padding:15px}}@media(max-width:800px){.grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -21,7 +21,199 @@ function message(text){$('loginError').textContent=text;setTimeout(()=>{$('login
 async function boot(){try{const x=await EWASCO_API.me();state.user=x.user;showApp();await select(state.entity)}catch{}}
 function showApp(){$('login').classList.add('hidden');$('app').classList.remove('hidden');$('identity').textContent=`${state.user.name} · ${state.user.role}`;renderNav()}
 function renderNav(){$('nav').innerHTML=entities.map(e=>`<button class="btn ${e===state.entity?'active':''}" data-entity="${e}">${labels[e]}</button>`).join('');$('nav').querySelectorAll('button').forEach(b=>b.onclick=()=>select(b.dataset.entity))}
-async function select(entity){state.entity=entity;renderNav();$('title').textContent=labels[entity];$('content').innerHTML='<p class="muted">Loading…</p>';try{state.records=await EWASCO_API.list(entity);renderRecords()}catch(e){$('content').innerHTML=`<p class="error">${esc(e.message)}</p>`}}
+async function select(entity){state.entity=entity;renderNav();$('title').textContent=labels[entity];const isSettings=entity==='settings';$('newRecord').classList.toggle('hidden',isSettings);$('search').classList.toggle('hidden',isSettings);$('content').innerHTML='<p class="muted">Loading…</p>';try{state.records=await EWASCO_API.list(entity);isSettings?renderSettings():renderRecords()}catch(e){$('content').innerHTML=`<p class="error">${esc(e.message)}</p>`}}
+function renderSettings(){
+ const saved=state.records.find(x=>x.id==='SETTINGS-BASELINE')||state.records[0]||{id:'SETTINGS-BASELINE'};
+ const cfg={
+  id:saved.id||'SETTINGS-BASELINE',
+  systemName:'EWASCO Chemical Inventory',
+  applicationVersion:'v2',
+  organizationName:'EWASCO',
+  siteName:'',
+  defaultMassUnit:'kg',
+  defaultVolumeUnit:'L',
+  expiryAlertDays:90,
+  lowStockAlerts:true,
+  turbidityReferenceNTU:5,
+  pHMin:6.5,
+  pHMax:8.5,
+  freeChlorineTargetMgL:'',
+  jarTestCriterion:'Least dose achieving <2.0 NTU; exclude nil-dose control',
+  chlorineDemandCriterion:'Least dose achieving target RCl; fallback if none meet target',
+  ...saved
+ };
+ const canEdit=['Administrator','Laboratory Manager'].includes(state.user?.role);
+ const modules=['Chemical Inventory','Batches / FIFO','Reagent Preparation','Consumption','Equipment & Calibration','Suppliers','Procurement','Water Treatment','Waste Management','SDS / MSDS','Audit Trail','Settings'];
+ const roles=[
+  ['Administrator','Full operational access','Audit, backup, restore, user administration, SDS'],
+  ['Laboratory Manager','Operational administration','Audit, backup, SDS; settings update'],
+  ['Analyst/Chemist','Laboratory operations','Reagents, consumption, water, waste, SDS'],
+  ['Storekeeper','Chemical store operations','Chemicals, batches, suppliers, procurement']
+ ];
+ $('content').innerHTML=`
+ <div class="settings-page">
+  <section class="settings-hero">
+   <h3>EWASCO Configuration Centre</h3>
+   <div class="sub">Central configuration for the production EWASCO Chemical Inventory system. This page is backed by PostgreSQL and the existing role-controlled API; it does not use the legacy browser-only storage model.</div>
+   <div class="settings-meta">
+    <span class="badge">Production</span><span class="badge">PostgreSQL</span><span class="badge">Role-based access</span><span class="badge">Audit trail</span><span class="badge">SDS lifecycle</span>
+   </div>
+   <div class="settings-kpis">
+    <div class="settings-kpi"><div class="label">Current user</div><div class="value">${esc(state.user?.name||'—')}</div></div>
+    <div class="settings-kpi"><div class="label">Role</div><div class="value">${esc(state.user?.role||'—')}</div></div>
+    <div class="settings-kpi"><div class="label">Configuration record</div><div class="value">${esc(saved.id||'SETTINGS-BASELINE')}</div></div>
+    <div class="settings-kpi"><div class="label">Last saved</div><div class="value">${esc(saved._updatedAt?new Date(saved._updatedAt).toLocaleString('en-KE'):'Not available')}</div></div>
+   </div>
+  </section>
+
+  <form id="settingsForm" class="settings-grid">
+   <section class="settings-card">
+    <h3>Organisation & application</h3>
+    <p class="hint">Identity shown within the system. These fields are configuration values, not regulatory claims.</p>
+    <div class="settings-fields">
+     <div class="settings-field"><label>Organisation name</label><input id="cfg_org" value="${esc(cfg.organizationName)}" ${canEdit?'':'disabled'}></div>
+     <div class="settings-field"><label>Site / laboratory unit</label><input id="cfg_site" value="${esc(cfg.siteName)}" placeholder="Enter verified site or laboratory unit" ${canEdit?'':'disabled'}></div>
+     <div class="settings-field"><label>System name</label><input id="cfg_system" value="${esc(cfg.systemName)}" ${canEdit?'':'disabled'}></div>
+     <div class="settings-field"><label>Application version</label><input id="cfg_version" value="${esc(cfg.applicationVersion)}" ${canEdit?'':'disabled'}></div>
+    </div>
+   </section>
+
+   <section class="settings-card">
+    <h3>Inventory controls</h3>
+    <p class="hint">Default values for the inventory workflow. Supported units follow the server validation model.</p>
+    <div class="settings-fields">
+     <div class="settings-field"><label>Default mass unit</label><select id="cfg_mass" ${canEdit?'':'disabled'}><option>g</option><option>kg</option><option>mg</option></select></div>
+     <div class="settings-field"><label>Default volume unit</label><select id="cfg_vol" ${canEdit?'':'disabled'}><option>mL</option><option>L</option></select></div>
+     <div class="settings-field"><label>Expiry alert lead time (days)</label><input id="cfg_expiry" type="number" min="0" max="3650" value="${esc(cfg.expiryAlertDays)}" ${canEdit?'':'disabled'}></div>
+     <div class="settings-field"><label>Low-stock alerts</label><div class="inline-check"><input id="cfg_low" type="checkbox" ${cfg.lowStockAlerts?'checked':''} ${canEdit?'':'disabled'}><span>Enable inventory low-stock signalling</span></div></div>
+    </div>
+   </section>
+
+   <section class="settings-card">
+    <h3>Quality & water-treatment references</h3>
+    <p class="hint">Project reference values only. Verify against the applicable current EWASCO/KEBS/WHO/NEMA requirements before using them as compliance limits.</p>
+    <div class="settings-fields">
+     <div class="settings-field"><label>Turbidity reference (NTU)</label><input id="cfg_nt" type="number" step="0.01" min="0" value="${esc(cfg.turbidityReferenceNTU)}" ${canEdit?'':'disabled'}></div>
+     <div class="settings-field"><label>Free chlorine target (mg/L)</label><input id="cfg_cl" type="number" step="0.001" min="0" value="${esc(cfg.freeChlorineTargetMgL)}" placeholder="Enter verified target" ${canEdit?'':'disabled'}></div>
+     <div class="settings-field"><label>pH minimum</label><input id="cfg_phmin" type="number" step="0.1" value="${esc(cfg.pHMin)}" ${canEdit?'':'disabled'}></div>
+     <div class="settings-field"><label>pH maximum</label><input id="cfg_phmax" type="number" step="0.1" value="${esc(cfg.pHMax)}" ${canEdit?'':'disabled'}></div>
+     <div class="settings-field span2"><label>Jar-test selection rule</label><textarea id="cfg_jar" ${canEdit?'':'disabled'}>${esc(cfg.jarTestCriterion)}</textarea></div>
+     <div class="settings-field span2"><label>Chlorine-demand selection rule</label><textarea id="cfg_cd" ${canEdit?'':'disabled'}>${esc(cfg.chlorineDemandCriterion)}</textarea></div>
+    </div>
+   </section>
+
+   <section class="settings-card">
+    <h3>System readiness</h3>
+    <p class="hint">Live checks against the deployed production service.</p>
+    <div id="settingsHealth">
+      <div class="status-line"><span class="status-dot"><i></i>Checking application…</span><span class="badge">Checking</span></div>
+    </div>
+    <div class="warning-box" style="margin-top:10px">SDS files are stored in the application upload path. The database is persistent, but this deployment does not currently show a dedicated persistent volume for SDS storage.</div>
+    <button id="settingsHealthBtn" type="button" class="btn" style="margin-top:10px">Recheck system</button>
+   </section>
+
+   <section class="settings-card">
+    <h3>Security & access</h3>
+    <p class="hint">Current production security characteristics derived from the deployed application.</p>
+    <div class="status-line"><span>Session cookie</span><span class="badge">HttpOnly · SameSite=Strict · Secure</span></div>
+    <div class="status-line"><span>Session lifetime</span><span class="badge">8 hours</span></div>
+    <div class="status-line"><span>CSRF protection</span><span class="badge">Enabled</span></div>
+    <div class="status-line"><span>Login rate limit</span><span class="badge">10 / 15 min</span></div>
+    <div class="status-line"><span>Your access</span><span class="badge">${esc(state.user?.role||'—')}</span></div>
+   </section>
+
+   <section class="settings-card full">
+    <h3>Enabled project modules</h3>
+    <p class="hint">The production API currently exposes these entities as the core system-of-record modules.</p>
+    <div class="setting-pills">${modules.map(x=>`<span class="setting-pill">${esc(x)}</span>`).join('')}</div>
+   </section>
+
+   <section class="settings-card full">
+    <h3>Role model</h3>
+    <p class="hint">This mirrors the server-side permission model; UI controls do not replace backend enforcement.</p>
+    <div class="table-wrap">
+     <table class="settings-table"><thead><tr><th>Role</th><th>Operational scope</th><th>Additional capabilities</th></tr></thead><tbody>
+      ${roles.map(r=>`<tr${r[0]===state.user?.role?' style="background:#102235"':''}><td><b>${esc(r[0])}</b></td><td>${esc(r[1])}</td><td>${esc(r[2])}</td></tr>`).join('')}
+     </tbody></table>
+    </div>
+   </section>
+
+   <section class="settings-card full">
+    <h3>Deployment profile</h3>
+    <div class="settings-grid" style="margin-top:10px">
+     <div class="settings-card read-only">
+      <div class="status-line"><span>Platform</span><span class="badge">Railway</span></div>
+      <div class="status-line"><span>Environment</span><span class="badge">production</span></div>
+      <div class="status-line"><span>Source branch</span><span class="badge">main</span></div>
+     </div>
+     <div class="settings-card read-only">
+      <div class="status-line"><span>Health endpoint</span><span class="badge">/healthz</span></div>
+      <div class="status-line"><span>Public host</span><span class="badge">ewasco-cheminventory-production.up.railway.app</span></div>
+      <div class="status-line"><span>Database</span><span class="badge">PostgreSQL</span></div>
+     </div>
+    </div>
+   </section>
+
+   <section class="settings-card full">
+    <div class="settings-actions">
+     <span class="muted" style="margin-right:auto;align-self:center">${canEdit?'Changes are saved centrally for the EWASCO organisation.':'Read-only for your current role.'}</span>
+     <button id="settingsReset" type="button" class="btn">Discard changes</button>
+     ${canEdit?'<button type="submit" class="btn primary">Save Configuration</button>':''}
+    </div>
+    <p id="settingsMsg" class="muted" style="margin:10px 0 0"></p>
+   </section>
+  </form>
+ </div>`;
+
+ $('cfg_mass').value=cfg.defaultMassUnit;
+ $('cfg_vol').value=cfg.defaultVolumeUnit;
+
+ $('settingsReset').onclick=()=>renderSettings();
+ $('settingsHealthBtn').onclick=checkSettingsHealth;
+ $('settingsForm').onsubmit=async e=>{
+   e.preventDefault();
+   if(!canEdit)return;
+   const next={...cfg,
+     organizationName:$('cfg_org').value.trim()||'EWASCO',
+     siteName:$('cfg_site').value.trim(),
+     systemName:$('cfg_system').value.trim()||'EWASCO Chemical Inventory',
+     applicationVersion:$('cfg_version').value.trim()||'v2',
+     defaultMassUnit:$('cfg_mass').value,
+     defaultVolumeUnit:$('cfg_vol').value,
+     expiryAlertDays:Math.max(0,Number($('cfg_expiry').value||0)),
+     lowStockAlerts:$('cfg_low').checked,
+     turbidityReferenceNTU:Math.max(0,Number($('cfg_nt').value||0)),
+     freeChlorineTargetMgL:$('cfg_cl').value,
+     pHMin:Number($('cfg_phmin').value||0),
+     pHMax:Number($('cfg_phmax').value||0),
+     jarTestCriterion:$('cfg_jar').value.trim(),
+     chlorineDemandCriterion:$('cfg_cd').value.trim()
+   };
+   try{
+     const result=saved.id?await EWASCO_API.update('settings',saved.id,next,saved._version||0):await EWASCO_API.create('settings',next);
+     state.records=[result];
+     renderSettings();
+     $('settingsMsg').textContent='Configuration saved successfully.';
+     $('settingsMsg').style.color='var(--accent)';
+   }catch(err){
+     $('settingsMsg').textContent=err.message;
+     $('settingsMsg').style.color='var(--danger)';
+   }
+ };
+ checkSettingsHealth();
+ async function checkSettingsHealth(){
+   const el=$('settingsHealth'); if(!el)return;
+   el.innerHTML='<div class="status-line"><span class="status-dot"><i></i>Checking application and database…</span><span class="badge">Checking</span></div>';
+   try{
+     const r=await fetch('/readyz',{credentials:'include'});
+     if(!r.ok)throw Error('Database readiness check failed');
+     el.innerHTML='<div class="status-line"><span class="status-dot ok"><i></i>Application + database ready</span><span class="badge">Healthy</span></div>';
+   }catch(e){
+     el.innerHTML=`<div class="status-line"><span class="status-dot"><i></i>${esc(e.message)}</span><span class="badge">Attention</span></div>`;
+   }
+ }
+}
+
 function renderRecords(){const q=$('search').value.toLowerCase();const rows=state.records.filter(r=>JSON.stringify(r).toLowerCase().includes(q));if(!rows.length){$('content').innerHTML='<p class="muted">No records found.</p>';return}const keys=[...new Set(rows.flatMap(r=>Object.keys(r).filter(k=>!k.startsWith('_'))))].slice(0,7);$('content').innerHTML=`<div class="table-wrap"><table class="table"><thead><tr>${keys.map(k=>`<th>${esc(k)}</th>`).join('')}<th>Actions</th></tr></thead><tbody>${rows.map(r=>`<tr>${keys.map(k=>`<td>${esc(typeof r[k]==='object'?JSON.stringify(r[k]):r[k])}</td>`).join('')}<td><button class="btn" data-edit="${esc(r.id)}">Edit</button> <button class="btn danger" data-delete="${esc(r.id)}">Delete</button></td></tr>`).join('')}</tbody></table></div>`;$('content').querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>edit(b.dataset.edit));$('content').querySelectorAll('[data-delete]').forEach(b=>b.onclick=()=>remove(b.dataset.delete))}
 function edit(id=''){const record=id?state.records.find(r=>r.id===id):{id:`${state.entity.slice(0,-1).toUpperCase()}-${crypto.randomUUID().slice(0,8)}`};const value=JSON.stringify(record,null,2);$('content').innerHTML=`<label>Record JSON<textarea id="recordJson" class="input json">${esc(value)}</textarea></label><div class="bar"><button id="cancel" class="btn">Cancel</button><button id="save" class="btn primary">Save</button></div><p id="formError" class="error"></p>`;$('cancel').onclick=renderRecords;$('save').onclick=async()=>{try{const next=JSON.parse($('recordJson').value);if(!next.id)throw Error('Record id is required');const result=id?await EWASCO_API.update(state.entity,next.id,next,next._version||0):await EWASCO_API.create(state.entity,next);state.records=state.records.filter(r=>r.id!==result.id).concat(result);renderRecords()}catch(e){$('formError').textContent=e.message}}}
 async function remove(id){if(!confirm('Delete this record permanently?'))return;try{await EWASCO_API.remove(state.entity,id);state.records=state.records.filter(r=>r.id!==id);renderRecords()}catch(e){alert(e.message)}}
