@@ -131,6 +131,8 @@ CREATE TABLE IF NOT EXISTS specifications(
      OR (operator='IS_NOT_NULL'))
 );
 
+CREATE SEQUENCE IF NOT EXISTS lims_sample_number_seq;
+
 CREATE TABLE IF NOT EXISTS samples(
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
