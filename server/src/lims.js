@@ -267,8 +267,12 @@ export function registerLimsRoutes({app,pool,auth,audit}){
     const c=await pool.connect();let committed=false;
     try{
       await c.query('BEGIN');
-      const q=await c.query("UPDATE sample_tests SET status=CASE WHEN status='PLANNED' OR status='ASSIGNED' THEN 'IN_PROGRESS' ELSE status END,assigned_to=$1,started_at=COALESCE(started_at,now()),updated_at=now() WHERE organization_id=$2 AND id=$3 AND status IN ('PLANNED','ASSIGNED','IN_PROGRESS') RETURNING *",[req.user.id,req.user.organization_id,req.params.id]);
-      if(!q.rowCount)return res.status(409).json({error:'Test cannot be claimed in its current state'});
+      const q0=await c.query("SELECT id,status,assigned_to,sample_id FROM sample_tests WHERE organization_id=$1 AND id=$2 FOR UPDATE",[req.user.organization_id,req.params.id]);
+      if(!q0.rowCount)return res.status(404).json({error:'Test not found'});
+      const current=q0.rows[0];
+      if(current.status!=='PLANNED'&&current.status!=='ASSIGNED'&&current.status!=='IN_PROGRESS')return res.status(409).json({error:'Test cannot be claimed in its current state'});
+      if(current.assigned_to&&current.assigned_to!==req.user.id&&!['Administrator','Laboratory Manager'].includes(req.user.role))return res.status(403).json({error:'This test is already assigned to another analyst'});
+      const q=await c.query("UPDATE sample_tests SET status='IN_PROGRESS',assigned_to=$1,started_at=COALESCE(started_at,now()),updated_at=now() WHERE organization_id=$2 AND id=$3 RETURNING *",[req.user.id,req.user.organization_id,req.params.id]);
       await audit(c,req.user,'lims_claim','sample_tests',req.params.id,{assignedTo:req.user.id});
       await c.query('COMMIT');committed=true;res.json(q.rows[0]);
     }catch(e){await c.query('ROLLBACK').catch(()=>{});next(e)}finally{if(!committed)await c.query('ROLLBACK').catch(()=>{});c.release()}
