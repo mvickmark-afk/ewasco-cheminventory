@@ -193,6 +193,7 @@ CREATE TABLE IF NOT EXISTS results(
   CHECK(NOT(value_numeric IS NOT NULL AND value_text IS NOT NULL))
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS users_username_global_uq ON users(lower(username));
 CREATE INDEX IF NOT EXISTS records_org_entity_updated_idx ON records(organization_id,entity,updated_at DESC);
 CREATE INDEX IF NOT EXISTS audit_org_created_idx ON audit_log(organization_id,created_at DESC);
 CREATE INDEX IF NOT EXISTS sessions_expiry_idx ON sessions(expires_at);
