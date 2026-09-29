@@ -199,7 +199,7 @@ export function registerLimsRoutes({app,pool,auth,audit}){
   });
 
   app.post('/api/lims/samples',auth,sampleWrite,async(req,res,next)=>{
-    const c=await pool.connect();
+    const c=await pool.connect();let committed=false;
     try{
       const d=sampleSchema.parse(req.body);
       await c.query('BEGIN');
@@ -210,6 +210,8 @@ export function registerLimsRoutes({app,pool,auth,audit}){
       const methods=await c.query("SELECT tm.id,tm.result_type,tm.active FROM test_methods tm WHERE tm.organization_id=$1 AND tm.id=ANY($2::uuid[])",[req.user.organization_id,d.tests.map(t=>t.methodId)]);
       if(methods.rowCount!==new Set(d.tests.map(t=>t.methodId)).size)throw Error('One or more test methods are missing or outside this organisation');
       if(methods.rows.some(x=>!x.active))throw Error('Inactive test method cannot be assigned');
+      const referencedUsers=[d.collectedBy,...d.tests.map(t=>t.assignedTo)].filter(Boolean);if(referencedUsers.length){const uq=await c.query("SELECT id FROM users WHERE organization_id=$1 AND disabled=false AND id=ANY($2::uuid[])",[req.user.organization_id,[...new Set(referencedUsers)]]);if(uq.rowCount!==new Set(referencedUsers).size)throw Error('A referenced user is missing, disabled or outside this organisation');}
+      if(d.collectedBy&&d.collectedBy!==req.user.id&&!['Administrator','Laboratory Manager'].includes(req.user.role))throw Error('Only laboratory management can attribute collection to another user');
       const sample=await c.query("INSERT INTO samples(organization_id,sample_no,sampling_point_id,sample_type,matrix,status,collected_at,received_at,collected_by,received_by,registered_by,notes) VALUES($1,'TEMP',NULLIF($2::uuid,'00000000-0000-0000-0000-000000000000'),$3,$4,'REGISTERED',$5,$6,$7,$8,$9,$10) RETURNING *",[req.user.organization_id,d.samplingPointId??'00000000-0000-0000-0000-000000000000',d.sampleType,d.matrix??null,d.collectedAt??null,d.receivedAt??null,d.collectedBy??null,d.receivedAt?req.user.id:null,req.user.id,d.notes??null]);
       const number=await c.query("SELECT 'SMP-'||to_char(current_date,'YYYYMMDD')||'-'||lpad(nextval('lims_sample_number_seq')::text,6,'0') sample_no");
       await c.query("UPDATE samples SET sample_no=$1 WHERE id=$2",[number.rows[0].sample_no,sample.rows[0].id]);
@@ -224,11 +226,11 @@ export function registerLimsRoutes({app,pool,auth,audit}){
       await c.query('COMMIT');
       const full=await pool.query("SELECT id,sample_no,status FROM samples WHERE id=$1 AND organization_id=$2",[sample.rows[0].id,req.user.organization_id]);
       res.status(201).json(full.rows[0]);
-    }catch(e){await c.query('ROLLBACK').catch(()=>{});next(e)}finally{c.release()}
+    }catch(e){await c.query('ROLLBACK').catch(()=>{});next(e)}finally{if(!committed)await c.query('ROLLBACK').catch(()=>{});c.release()}
   });
 
   app.patch('/api/lims/samples/:id/status',auth,sampleWrite,async(req,res,next)=>{
-    const c=await pool.connect();
+    const c=await pool.connect();let committed=false;
     try{
       const body=z.object({status:z.enum(['REGISTERED','RECEIVED','IN_ANALYSIS','PENDING_REVIEW','APPROVED','REPORTED','ARCHIVED','CANCELLED'])}).parse(req.body);
       await c.query('BEGIN');
@@ -245,7 +247,7 @@ export function registerLimsRoutes({app,pool,auth,audit}){
       await audit(c,req.user,'lims_status', 'samples',req.params.id,{from:current,to:body.status});
       await c.query('COMMIT');
       res.json(x.rows[0]);
-    }catch(e){await c.query('ROLLBACK').catch(()=>{});next(e)}finally{c.release()}
+    }catch(e){await c.query('ROLLBACK').catch(()=>{});next(e)}finally{if(!committed)await c.query('ROLLBACK').catch(()=>{});c.release()}
   });
 
   app.get('/api/lims/worklist',auth,read,async(req,res,next)=>{
@@ -262,18 +264,18 @@ export function registerLimsRoutes({app,pool,auth,audit}){
   });
 
   app.post('/api/lims/tests/:id/claim',auth,resultWrite,async(req,res,next)=>{
-    const c=await pool.connect();
+    const c=await pool.connect();let committed=false;
     try{
       await c.query('BEGIN');
       const q=await c.query("UPDATE sample_tests SET status=CASE WHEN status='PLANNED' OR status='ASSIGNED' THEN 'IN_PROGRESS' ELSE status END,assigned_to=$1,started_at=COALESCE(started_at,now()),updated_at=now() WHERE organization_id=$2 AND id=$3 AND status IN ('PLANNED','ASSIGNED','IN_PROGRESS') RETURNING *",[req.user.id,req.user.organization_id,req.params.id]);
       if(!q.rowCount)return res.status(409).json({error:'Test cannot be claimed in its current state'});
       await audit(c,req.user,'lims_claim','sample_tests',req.params.id,{assignedTo:req.user.id});
-      await c.query('COMMIT');res.json(q.rows[0]);
-    }catch(e){await c.query('ROLLBACK').catch(()=>{});next(e)}finally{c.release()}
+      await c.query('COMMIT');committed=true;res.json(q.rows[0]);
+    }catch(e){await c.query('ROLLBACK').catch(()=>{});next(e)}finally{if(!committed)await c.query('ROLLBACK').catch(()=>{});c.release()}
   });
 
   app.post('/api/lims/tests/:id/result',auth,resultWrite,async(req,res,next)=>{
-    const c=await pool.connect();
+    const c=await pool.connect();let committed=false;
     try{
       const d=resultSchema.parse(req.body);await c.query('BEGIN');
       const q=await c.query(`SELECT st.*,tm.result_type,tm.default_unit,spc.operator,spc.lower_limit,spc.upper_limit,spc.target_unit
@@ -296,12 +298,12 @@ export function registerLimsRoutes({app,pool,auth,audit}){
       await c.query("UPDATE sample_tests SET status='RESULT_ENTERED',result_entered_at=now(),updated_at=now() WHERE id=$1",[req.params.id]);
       await c.query("UPDATE samples SET status='IN_ANALYSIS',updated_at=now() WHERE id=$1 AND organization_id=$2 AND status IN ('REGISTERED','RECEIVED')",[st.sample_id,req.user.organization_id]);
       await audit(c,req.user,existing.rowCount?'lims_result_update':'lims_result_enter','results',r.rows[0].id,{sampleTestId:req.params.id,resultFlag:flag,unit:r.rows[0].unit});
-      await c.query('COMMIT');res.status(existing.rowCount?200:201).json(r.rows[0]);
-    }catch(e){await c.query('ROLLBACK').catch(()=>{});next(e)}finally{c.release()}
+      await c.query('COMMIT');committed=true;res.status(existing.rowCount?200:201).json(r.rows[0]);
+    }catch(e){await c.query('ROLLBACK').catch(()=>{});next(e)}finally{if(!committed)await c.query('ROLLBACK').catch(()=>{});c.release()}
   });
 
   app.post('/api/lims/results/:id/review',auth,review,async(req,res,next)=>{
-    const c=await pool.connect();
+    const c=await pool.connect();let committed=false;
     try{
       await c.query('BEGIN');
       const q=await c.query(`SELECT r.*,st.sample_id,st.status test_status FROM results r JOIN sample_tests st ON st.id=r.sample_test_id WHERE r.organization_id=$1 AND r.id=$2 FOR UPDATE`,[req.user.organization_id,req.params.id]);
@@ -310,12 +312,12 @@ export function registerLimsRoutes({app,pool,auth,audit}){
       const x=await c.query("UPDATE results SET result_status='REVIEWED',reviewed_by=$1,reviewed_at=now(),updated_at=now() WHERE id=$2 AND organization_id=$3 RETURNING *",[req.user.id,req.params.id,req.user.organization_id]);
       await c.query("UPDATE sample_tests SET status='REVIEWED',reviewed_at=now(),updated_at=now() WHERE id=$1",[r.sample_test_id]);
       await audit(c,req.user,'lims_result_review','results',req.params.id,{sampleTestId:r.sample_test_id});
-      await c.query('COMMIT');res.json(x.rows[0]);
-    }catch(e){await c.query('ROLLBACK').catch(()=>{});next(e)}finally{c.release()}
+      await c.query('COMMIT');committed=true;res.json(x.rows[0]);
+    }catch(e){await c.query('ROLLBACK').catch(()=>{});next(e)}finally{if(!committed)await c.query('ROLLBACK').catch(()=>{});c.release()}
   });
 
   app.post('/api/lims/results/:id/approve',auth,approve,async(req,res,next)=>{
-    const c=await pool.connect();
+    const c=await pool.connect();let committed=false;
     try{
       const body=z.object({password:z.string().min(1).max(200)}).parse(req.body);await c.query('BEGIN');
       const u=await c.query("SELECT password_hash FROM users WHERE organization_id=$1 AND id=$2 AND disabled=false FOR UPDATE",[req.user.organization_id,req.user.id]);
@@ -330,8 +332,8 @@ export function registerLimsRoutes({app,pool,auth,audit}){
       const remaining=await c.query("SELECT count(*)::int count FROM sample_tests WHERE sample_id=$1 AND status<>'APPROVED'",[r.sample_id]);
       if(remaining.rows[0].count===0)await c.query("UPDATE samples SET status='APPROVED',updated_at=now() WHERE id=$1 AND organization_id=$2",[r.sample_id,req.user.organization_id]);
       await audit(c,req.user,'lims_result_approve','results',req.params.id,{sampleTestId:r.sample_test_id,sampleId:r.sample_id,reauthenticated:true});
-      await c.query('COMMIT');res.json(x.rows[0]);
-    }catch(e){await c.query('ROLLBACK').catch(()=>{});next(e)}finally{c.release()}
+      await c.query('COMMIT');committed=true;res.json(x.rows[0]);
+    }catch(e){await c.query('ROLLBACK').catch(()=>{});next(e)}finally{if(!committed)await c.query('ROLLBACK').catch(()=>{});c.release()}
   });
 
   app.get('/api/lims/results/:id',auth,read,async(req,res,next)=>{
