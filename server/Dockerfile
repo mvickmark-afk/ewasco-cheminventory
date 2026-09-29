@@ -3,6 +3,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install --omit=dev
 COPY . .
+RUN npm test
 RUN chmod +x docker-entrypoint.sh && mkdir -p uploads
 USER node
 EXPOSE 3000
