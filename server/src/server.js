@@ -4,7 +4,22 @@ import {registerLimsRoutes} from './lims.js';
 const required=n=>{if(!process.env[n])throw Error(`${n} is required`);return process.env[n]};const db=required('DATABASE_URL'),secret=required('JWT_SECRET');const prod=process.env.NODE_ENV==='production';if(secret.length<32||/change|replace|generate/i.test(secret))throw Error('JWT_SECRET is unsafe');if(!process.env.CORS_ORIGIN||process.env.CORS_ORIGIN==='*')throw Error('CORS_ORIGIN must be explicit');if(prod&&process.env.COOKIE_SECURE!=='true')throw Error('COOKIE_SECURE=true required');
 const pool=new pg.Pool({connectionString:db,max:+(process.env.DB_POOL_MAX||10),idleTimeoutMillis:30000});const app=express();app.set('trust proxy',1);const port=+(process.env.PORT||3000),cookie='ewasco_session',csrfCookie='ewasco_csrf',dir=path.resolve(process.env.UPLOAD_DIR||'./uploads');await fs.mkdir(dir,{recursive:true});
 const upload=multer({storage:multer.diskStorage({destination:dir,filename:(_r,f,cb)=>cb(null,`${crypto.randomUUID()}-${path.basename(f.originalname).replace(/[^A-Za-z0-9._-]/g,'_')}`)}),limits:{fileSize:10*1024*1024}});app.disable('x-powered-by');
-app.use(helmet({referrerPolicy:{policy:'no-referrer'},crossOriginEmbedderPolicy:false}));
+app.use(helmet({
+  referrerPolicy:{policy:'no-referrer'},
+  crossOriginEmbedderPolicy:false,
+  contentSecurityPolicy:{
+    directives:{
+      defaultSrc:["'self'"],
+      scriptSrc:["'self'"],
+      connectSrc:["'self'"],
+      styleSrc:["'self'","'unsafe-inline'"],
+      imgSrc:["'self'","data:"],
+      fontSrc:["'self'"],
+      objectSrc:["'none'"],
+      upgradeInsecureRequests:[]
+    }
+  }
+}));
 app.use(cors({origin:process.env.CORS_ORIGIN,credentials:true,methods:['GET','HEAD','POST','PUT','PATCH','DELETE'],allowedHeaders:['Content-Type','X-CSRF-Token','If-Match']}));
 app.use(express.json({limit:'1mb',strict:true}));app.use(cookieParser());
 app.use('/api',rateLimit({windowMs:60000,limit:300,standardHeaders:true,legacyHeaders:false}));
