@@ -72,24 +72,33 @@ function uniqueCas(values){
 }
 
 export function parseRevisionDate(value){
-  const raw=clean(value);
+  const raw=clean(value).replace(/\b(\d{1,2})(st|nd|rd|th)\b/gi,'$1');
   if(!raw)return null;
   const invalid=message=>{throw Object.assign(new Error(message),{statusCode:422})};
-  let y,m,d;
-  let x=raw.match(/^(\d{4})[.\/-](\d{1,2})[.\/-](\d{1,2})$/);
-  if(x){y=+x[1];m=+x[2];d=+x[3]}
-  else if((x=raw.match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{4})$/))){
-    const a=+x[1],b=+x[2];y=+x[3];
-    if(a<=12&&b<=12)invalid('Revision date is ambiguous; use an unambiguous format such as YYYY-MM-DD or DD Month YYYY');
-    if(a>12){d=a;m=b}else{m=a;d=b}
-  }else{
-    const months={january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12,
-      jan:1,feb:2,mar:3,apr:4,jun:6,jul:7,aug:8,sep:9,sept:9,oct:10,nov:11,dec:12};
-    x=raw.match(/^(\d{1,2})[- ]([A-Za-z]+)[, -]+(\d{4})$/)||raw.match(/^([A-Za-z]+)[ -]+(\d{1,2}),?[ -]+(\d{4})$/);
-    if(!x)invalid('Revision date could not be parsed without guessing');
-    if(/^\d/.test(x[1])){d=+x[1];m=months[x[2].toLowerCase()];y=+x[3]}
-    else{m=months[x[1].toLowerCase()];d=+x[2];y=+x[3]}
+  const months={january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12,
+    jan:1,feb:2,mar:3,apr:4,jun:6,jul:7,aug:8,sep:9,sept:9,oct:10,nov:11,dec:12};
+  const candidates=[];
+  const push=(y,m,d)=>{if(Number.isInteger(y)&&Number.isInteger(m)&&Number.isInteger(d))candidates.push({y,m,d})};
+
+  for(const x of raw.matchAll(/\b(\d{4})[.\\/-](\d{1,2})[.\\/-](\d{1,2})\b/g))push(+x[1],+x[2],+x[3]);
+
+  for(const x of raw.matchAll(/\b(\d{1,2})[.\\/-](\d{1,2})[.\\/-](\d{4})\b/g)){
+    const a=+x[1],b=+x[2],y=+x[3];
+    if(a>12&&b<=12)push(y,b,a);
+    else if(b>12&&a<=12)push(y,a,b);
+    else if(a<=12&&b<=12)invalid('Revision date is ambiguous; automatic extraction will not guess the date order');
   }
+
+  for(const x of raw.matchAll(/\b(\d{1,2})[- ]([A-Za-z]{3,12})[, -]+(\d{4})\b/g))push(+x[3],months[x[2].toLowerCase()],+x[1]);
+  for(const x of raw.matchAll(/\b([A-Za-z]{3,12})[- ](\d{1,2}),?[ -]+(\d{4})\b/g))push(+x[3],months[x[1].toLowerCase()],+x[2]);
+
+  const distinct=[...new Set(candidates.filter(x=>x.m&&x.d).map(x=>JSON.stringify(x)))].map(JSON.parse);
+  if(distinct.length!==1){
+    if(distinct.length>1)invalid('Multiple revision dates were detected; automatic extraction will not guess which date is intended');
+    invalid('Revision date could not be parsed without guessing. Supported unambiguous formats include YYYY-MM-DD, DD/MM/YYYY with an unambiguous day, and DD Month YYYY');
+  }
+
+  const {y,m,d}=distinct[0];
   const dt=new Date(Date.UTC(y,m-1,d));
   if(!m||!y||!d||dt.getUTCFullYear()!==y||dt.getUTCMonth()!==m-1||dt.getUTCDate()!==d)invalid('Invalid revision date');
   return dt.toISOString().slice(0,10);
