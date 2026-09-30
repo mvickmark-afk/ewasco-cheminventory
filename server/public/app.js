@@ -28,7 +28,7 @@ function renderNav(){
  $('nav').querySelectorAll('[data-page]').forEach(b=>b.onclick=()=>go(b.dataset.page));
 }
 async function go(page){state.page=page;renderNav();$('title').textContent=pages.find(x=>x[1]===page)?.[2]||page;$('content').innerHTML='<div class="empty">Loading…</div>';try{
- if(page==='dashboard')return renderDashboard();if(page==='samples')return renderSamples();if(page==='worklist')return renderWorklist();if(page==='points')return renderPoints();if(page==='methods')return renderMethods();if(page==='specs')return renderSpecs();if(page==='security')return renderSecurity();return renderLegacy(page);
+ if(page==='dashboard')return renderDashboard();if(page==='samples')return renderSamples();if(page==='worklist')return renderWorklist();if(page==='points')return renderPoints();if(page==='methods')return renderMethods();if(page==='specs')return renderSpecs();if(page==='security')return renderSecurity();if(page==='settings')return renderSettings();return renderLegacy(page);
 }catch(e){$('content').innerHTML='<div class="error">'+esc(e.message)+'</div>'}}
 $('refresh').onclick=()=>go(state.page);
 
@@ -133,6 +133,39 @@ function openUserForm(){
  document.body.insertAdjacentHTML('beforeend',html);$('uclose').onclick=()=>$('userModal').remove();$('usave').onclick=async()=>{try{const r=await EWASCO_API.createUser({username:$('un').value,password:$('up').value,role:$('ur').value,disabled:false});$('userModal').remove();toast('Created '+r.username,true);await renderSecurity()}catch(e){$('ue').textContent=e.message}}
 }
 function manageUser(u){if(!u)return;const changeRole=prompt('Role for '+u.username+' (Administrator / Laboratory Manager / Analyst/Chemist / Storekeeper):',u.role);if(changeRole===null)return;const reset=confirm('Reset this user password?');const pw=reset?prompt('New password (12+ chars, upper/lower/number):'):null;if(reset&&pw===null)return;const nextState=u.disabled?'enable':'disable';const changeState=confirm((u.disabled?'Enable ':'Disable ')+u.username+'?');const payload={role:changeRole||u.role};if(changeState)payload.disabled=!u.disabled; if(reset&&pw)payload.password=pw;EWASCO_API.updateUser(u.id,payload).then(()=>renderSecurity()).catch(e=>alert(e.message))}
+async function renderSettings(){
+ const rows=await EWASCO_API.list('settings');
+ const s=rows[0];
+ if(!s){$('content').innerHTML='<div class="card"><h3>Settings</h3><p class="empty">No Settings baseline has been initialized.</p></div>';return}
+ $('content').innerHTML=`
+ <div class="page-head"><h2>Settings</h2><div class="actions"><button class="btn" id="settingsRefresh">Refresh</button>${state.user.role==='Administrator'?'<button class="btn primary" id="settingsEdit">Edit</button>':''}</div></div>
+ <section class="card section-card">
+  <div class="form-grid">
+   <label>System name<input class="input" id="setSystem" value="${esc(s.systemName||'')}" readonly></label>
+   <label>Organization name<input class="input" id="setOrg" value="${esc(s.organizationName||'')}" readonly></label>
+   <label>Application version<input class="input" id="setVersion" value="${esc(s.applicationVersion||'')}" readonly></label>
+   <label>Baseline initialized<input class="input" id="setBaseline" value="${s.baselineInitialized?'Yes':'No'}" readonly></label>
+  </div>
+ </section>
+ <section class="card section-card"><h3>System configuration</h3><p class="note">These settings are stored for this EWASCO organization and are used as the system baseline. Changes are recorded through the normal audit trail.</p></section>`;
+ $('settingsRefresh').onclick=()=>renderSettings();
+ if(state.user.role==='Administrator')$('settingsEdit').onclick=()=>settingsEditDialog(s);
+}
+function settingsEditDialog(s){
+ const html='<div class="overlay" id="settingsModal"><div class="card modal"><div class="bar"><h3>Edit Settings</h3><span class="spacer"></span><button class="btn" id="setClose">Close</button></div>'+
+ '<label>System name<input id="setSystemEdit" class="input" value="'+esc(s.systemName||'')+'"></label>'+
+ '<label>Organization name<input id="setOrgEdit" class="input" value="'+esc(s.organizationName||'')+'"></label>'+
+ '<label>Application version<input id="setVersionEdit" class="input" value="'+esc(s.applicationVersion||'')+'"></label>'+
+ '<p class="mini muted">Baseline initialization is system-controlled.</p><p id="setErr" class="error"></p><div class="bar"><span class="spacer"></span><button class="btn primary" id="setSave">Save changes</button></div></div></div>';
+ document.body.insertAdjacentHTML('beforeend',html);
+ $('setClose').onclick=()=>$('settingsModal').remove();
+ $('setSave').onclick=async()=>{try{
+   const next={...s,systemName:$('setSystemEdit').value.trim(),organizationName:$('setOrgEdit').value.trim(),applicationVersion:$('setVersionEdit').value.trim()};
+   if(!next.systemName||!next.organizationName||!next.applicationVersion)throw Error('System name, organization name, and application version are required');
+   await EWASCO_API.update('settings',s.id,next,s._version||0);
+   $('settingsModal').remove();toast('Settings saved',true);await renderSettings();
+ }catch(e){$('setErr').textContent=e.message}}
+}
 async function renderLegacy(entity){
  if(entity==='audit'){const rows=await fetch('/api/audit',{credentials:'include'}).then(async r=>{if(!r.ok)throw Error((await r.json()).error||'Forbidden');return r.json()});$('content').innerHTML='<div class="table-wrap"><table class="table"><thead><tr><th>Time</th><th>User</th><th>Action</th><th>Entity</th><th>Record</th><th>Data</th></tr></thead><tbody>'+rows.map(r=>'<tr><td>'+fmt(r.created_at)+'</td><td>'+esc(r.username||'system')+'</td><td>'+esc(r.action)+'</td><td>'+esc(r.entity)+'</td><td>'+esc(r.record_id||'—')+'</td><td><code>'+esc(JSON.stringify(r.data||{}))+'</code></td></tr>').join('')+'</tbody></table></div>';return}
  const rows=await EWASCO_API.list(entity);if(entity==='sds')return renderSDS(rows);
