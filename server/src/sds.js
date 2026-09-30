@@ -73,23 +73,25 @@ function uniqueCas(values){
 
 export function parseRevisionDate(value){
   const raw=clean(value);
-  if(!raw) return null;
+  if(!raw)return null;
+  const invalid=message=>{throw Object.assign(new Error(message),{statusCode:422})};
   let y,m,d;
-  let x=raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  let x=raw.match(/^(\d{4})[.\/-](\d{1,2})[.\/-](\d{1,2})$/);
   if(x){y=+x[1];m=+x[2];d=+x[3]}
-  else if((x=raw.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/))){
+  else if((x=raw.match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{4})$/))){
     const a=+x[1],b=+x[2];y=+x[3];
-    if(a<=12&&b<=12)throw Error('Revision date is ambiguous; use a date with an unambiguous format such as YYYY-MM-DD or DD Month YYYY');
+    if(a<=12&&b<=12)invalid('Revision date is ambiguous; use an unambiguous format such as YYYY-MM-DD or DD Month YYYY');
     if(a>12){d=a;m=b}else{m=a;d=b}
   }else{
-    const months={january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12};
-    x=raw.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/)||raw.match(/^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})$/);
-    if(!x)throw Error('Revision date could not be parsed without guessing');
+    const months={january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12,
+      jan:1,feb:2,mar:3,apr:4,jun:6,jul:7,aug:8,sep:9,sept:9,oct:10,nov:11,dec:12};
+    x=raw.match(/^(\d{1,2})[- ]([A-Za-z]+)[, -]+(\d{4})$/)||raw.match(/^([A-Za-z]+)[ -]+(\d{1,2}),?[ -]+(\d{4})$/);
+    if(!x)invalid('Revision date could not be parsed without guessing');
     if(/^\d/.test(x[1])){d=+x[1];m=months[x[2].toLowerCase()];y=+x[3]}
     else{m=months[x[1].toLowerCase()];d=+x[2];y=+x[3]}
   }
   const dt=new Date(Date.UTC(y,m-1,d));
-  if(!m||!y||!d||dt.getUTCFullYear()!==y||dt.getUTCMonth()!==m-1||dt.getUTCDate()!==d)throw Error('Invalid revision date');
+  if(!m||!y||!d||dt.getUTCFullYear()!==y||dt.getUTCMonth()!==m-1||dt.getUTCDate()!==d)invalid('Invalid revision date');
   return dt.toISOString().slice(0,10);
 }
 

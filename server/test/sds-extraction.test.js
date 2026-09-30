@@ -55,3 +55,18 @@ test('fails rather than guessing when required metadata is missing',()=>{
 test('SDS records may exist before a chemical link is known',()=>{
   assert.doesNotThrow(()=>validate('sds',{id:'SDS-TEST-001',name:'SODIUM',manufacturer:'EWASCO',product:'SODIUM HYPOCHLORITE',cas:'7681-52-9',revisionDate:'2026-09-30'}));
 });
+
+test('accepts common year-first slash/dot dates',()=>{
+  assert.equal(parseRevisionDate('2026/09/30'),'2026-09-30');
+  assert.equal(parseRevisionDate('2026.09.30'),'2026-09-30');
+});
+
+test('accepts abbreviated month-name dates',()=>{
+  assert.equal(parseRevisionDate('30 Sep 2026'),'2026-09-30');
+  assert.equal(parseRevisionDate('September 30, 2026'),'2026-09-30');
+});
+
+test('reports unsupported or ambiguous revision dates as controlled validation errors',()=>{
+  assert.throws(()=>parseRevisionDate('September 30th, 2026'),e=>e?.statusCode===422);
+  assert.throws(()=>parseRevisionDate('09/10/2026'),e=>e?.statusCode===422);
+});
