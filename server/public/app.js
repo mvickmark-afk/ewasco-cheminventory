@@ -79,19 +79,11 @@ async function openSampleForm(){
 }
 async function showSample(id){
  const s=await EWASCO_API.limsSample(id);
- $('content').innerHTML=`
- <div class="bar"><button class="btn" id="back">← Samples</button><span class="spacer"></span><span class="badge">${esc(s.status)}</span></div>
- <div class="split">
-  <section class="card"><h3>${esc(s.sample_no)}</h3><div class="note">${esc(s.sample_type)} · ${esc(s.matrix||'Matrix not recorded')}</div><div class="note" style="margin-top:8px">Point: ${esc(s.sampling_point_name||'Not specified')} · Collected: ${fmt(s.collected_at)} · Received: ${fmt(s.received_at)}</div></section>
-  <section class="card"><h3>Lifecycle</h3><div class="inline"><button class="btn" id="receive" ${s.status==='REGISTERED'?'':'disabled'}>Mark received</button><button class="btn" id="cancel" ${['REGISTERED','RECEIVED','IN_ANALYSIS','PENDING_REVIEW'].includes(s.status)?'':'disabled'}>Cancel sample</button></div><p class="note">Approvals are server controlled; UI state does not override workflow permissions.</p></section>
- </div>
- <section class="card section-card"><h3>Assigned tests & results</h3><div class="table-wrap"><table class="table"><thead><tr><th>Method</th><th>Status</th><th>Result</th><th>Flag</th><th>Author</th><th>Actions</th></tr></thead><tbody>${s.tests.map(t=>{
-  const val=t.value_numeric??t.value_text??'—';
-  let actions='';
-  if(!t.result_id&&!['APPROVED','CANCELLED'].includes(s.status)&&state.user.role!=='Storekeeper')actions+='<button class="btn" data-claim="'+t.id+'">Claim / enter</button> ';
-  if(t.result_id&&t.result_status==='ENTERED'&&canReview())actions+='<button class="btn" data-review="'+t.result_id+'">Review</button> ';
-  if(t.result_id&&t.result_status==='REVIEWED'&&canApprove())actions+='<button class="btn primary" data-approve="'+t.result_id+'">Approve</button>';
-  return '<tr><td><b>'+esc(t.method_code)+'</b><br><span class="note">'+esc(t.method_name)+'</span></td><td><span class="badge">'+esc(t.status)+'</span></td><td>'+esc(val)+(t.unit?' '+esc(t.unit):'')+'</td><td><span class="badge '+(t.result_flag==='FAIL'?'bad':t.result_flag==='PASS'?'good':'')+'">'+esc(t.result_flag||'—')+'</span></td><td>'+esc(t.entered_by||'—')+'</td><td>'+actions+'</td></tr>'}) .join('')+'</tbody></table></div></section>`;
+ const testRows=s.tests.map(t=>{const val=t.value_numeric??t.value_text??'—';let actions='';if(!t.result_id&&!['APPROVED','CANCELLED'].includes(s.status)&&state.user.role!=='Storekeeper')actions+='<button class="btn" data-claim="'+t.id+'">Claim / enter</button> ';if(t.result_id&&t.result_status==='ENTERED'&&canReview())actions+='<button class="btn" data-review="'+t.result_id+'">Review</button> ';if(t.result_id&&t.result_status==='REVIEWED'&&canApprove())actions+='<button class="btn primary" data-approve="'+t.result_id+'">Approve</button>';return '<tr><td><b>'+esc(t.method_code)+'</b><br><span class="note">'+esc(t.method_name)+'</span></td><td><span class="badge">'+esc(t.status)+'</span></td><td>'+esc(val)+(t.unit?' '+esc(t.unit):'')+'</td><td><span class="badge '+(t.result_flag==='FAIL'?'bad':t.result_flag==='PASS'?'good':'')+'">'+esc(t.result_flag||'—')+'</span></td><td>'+esc(t.entered_by||'—')+'</td><td>'+actions+'</td></tr>'}).join('');
+ $('content').innerHTML='<div class="bar"><button class="btn" id="back">← Samples</button><span class="spacer"></span><span class="badge">'+esc(s.status)+'</span></div>'+
+ '<div class="split"><section class="card"><h3>'+esc(s.sample_no)+'</h3><div class="note">'+esc(s.sample_type)+' · '+esc(s.matrix||'Matrix not recorded')+'</div><div class="note" style="margin-top:8px">Point: '+esc(s.sampling_point_name||'Not specified')+' · Collected: '+fmt(s.collected_at)+' · Received: '+fmt(s.received_at)+'</div></section>'+
+ '<section class="card"><h3>Lifecycle</h3><div class="inline"><button class="btn" id="receive" '+(s.status==='REGISTERED'?'':'disabled')+'>Mark received</button><button class="btn" id="cancel" '+(['REGISTERED','RECEIVED','IN_ANALYSIS','PENDING_REVIEW'].includes(s.status)?'':'disabled')+'>Cancel sample</button></div><p class="note">Approvals are server controlled; UI state does not override workflow permissions.</p></section></div>'+
+ '<section class="card section-card"><h3>Assigned tests & results</h3><div class="table-wrap"><table class="table"><thead><tr><th>Method</th><th>Status</th><th>Result</th><th>Flag</th><th>Author</th><th>Actions</th></tr></thead><tbody>'+testRows+'</tbody></table></div></section>';
  $('back').onclick=()=>renderSamples();
  $('receive').onclick=async()=>{try{await EWASCO_API.updateLimsSampleStatus(id,'RECEIVED');await showSample(id)}catch(e){alert(e.message)}};
  $('cancel').onclick=async()=>{if(!confirm('Cancel this sample?'))return;try{await EWASCO_API.updateLimsSampleStatus(id,'CANCELLED');await showSample(id)}catch(e){alert(e.message)}};
@@ -99,6 +91,7 @@ async function showSample(id){
  document.querySelectorAll('[data-review]').forEach(b=>b.onclick=async()=>{try{await EWASCO_API.reviewLimsResult(b.dataset.review);await showSample(id)}catch(e){alert(e.message)}});
  document.querySelectorAll('[data-approve]').forEach(b=>b.onclick=async()=>{const p=prompt('Re-enter your password to approve this result:');if(p===null)return;try{await EWASCO_API.approveLimsResult(b.dataset.approve,p);await showSample(id)}catch(e){alert(e.message)}});
 }
+
 async function enterResult(testId,sample){const t=sample.tests.find(x=>x.id===testId);if(!t)return;const raw=prompt('Enter result for '+t.method_name+' ('+t.result_type+(t.default_unit?' · '+t.default_unit:'')+'):');if(raw===null)return;const v=raw.trim();if(!v)return alert('Result cannot be blank');try{const payload={rawValue:v,unit:t.default_unit||null};if(t.result_type==='NUMERIC'){const n=Number(v);if(!Number.isFinite(n))throw Error('Numeric result required');payload.valueNumeric=n}else payload.valueText=v;if(t.instrument_reference)payload.instrumentReference=t.instrument_reference;await EWASCO_API.enterLimsResult(testId,payload);await showSample(sample.id)}catch(e){alert(e.message)}}
 
 async function renderWorklist(){
