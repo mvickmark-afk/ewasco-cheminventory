@@ -70,3 +70,17 @@ test('reports unsupported or ambiguous revision dates as controlled validation e
   assert.throws(()=>parseRevisionDate('September 30th, 2026'),e=>e?.statusCode===422);
   assert.throws(()=>parseRevisionDate('09/10/2026'),e=>e?.statusCode===422);
 });
+
+test('extracts a date token when revision text contains a revision suffix',()=>{
+  assert.equal(parseRevisionDate('Rev 1 - 2026-09-30'),'2026-09-30');
+  assert.equal(parseRevisionDate('2026-09-30 14:30:00'),'2026-09-30');
+});
+
+test('accepts ordinal day suffixes in month-name dates',()=>{
+  assert.equal(parseRevisionDate('30th September 2026'),'2026-09-30');
+  assert.equal(parseRevisionDate('1st January 2026'),'2026-01-01');
+});
+
+test('rejects two-digit numeric years because century is not inferable',()=>{
+  assert.throws(()=>parseRevisionDate('30/09/26'),/could not be parsed|guessing/i);
+});
