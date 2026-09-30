@@ -24,8 +24,8 @@ test('Settings remains on the dedicated API-backed implementation',()=>{
 });
 
 test('every frontend API adapter call has an implementation',()=>{
-  const methods=new Set([...api.matchAll(/(?:^|[,{])\s*([A-Za-z_$][\w$]*)\s*:/g)].map(m=>m[1]));
-  const calls=new Set([...app.matchAll(/EWASCO_API\.([A-Za-z_$][\w$]*)/g)].map(m=>m[1]));
+  const methods=new Set([...api.matchAll(/(?:^|[,{])[ \t\r\n]*([A-Za-z_$][A-Za-z0-9_$]*)[ \t\r\n]*:/g)].map(m=>m[1]));
+  const calls=new Set([...app.matchAll(/EWASCO_API[.]([A-Za-z_$][A-Za-z0-9_$]*)/g)].map(m=>m[1]));
   const missing=[...calls].filter(name=>!methods.has(name));
   assert.deepEqual(missing,[]);
 });
