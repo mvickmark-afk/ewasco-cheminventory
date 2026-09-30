@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {extractSdsMetadata,parseRevisionDate} from '../src/sds.js';
+import {validate} from '../src/permissions.js';
 
 const documentText=[
  'SAFETY DATA SHEET NAME: SODIUM',
@@ -49,4 +50,8 @@ test('fails rather than guessing when required metadata is missing',()=>{
     'Product Identifier: SODIUM HYPOCHLORITE',
     'CAS No: 7681-52-9'
   ].join('\n')),/Revision date/i);
+});
+
+test('SDS records may exist before a chemical link is known',()=>{
+  assert.doesNotThrow(()=>validate('sds',{id:'SDS-TEST-001',name:'SODIUM',manufacturer:'EWASCO',product:'SODIUM HYPOCHLORITE',cas:'7681-52-9',revisionDate:'2026-09-30'}));
 });
