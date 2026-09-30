@@ -9,6 +9,7 @@ const runtimeFiles=[
   'src/permissions.js',
   'src/migrate.js',
   'src/seed-admin.js',
+  'src/sds.js',
   'public/app.js',
   'public/api-client.js'
 ];
@@ -32,6 +33,7 @@ if(/<script>[ \t\r\n]*(?!src=)/i.test(index))fail('Production frontend contains 
 const app=fs.readFileSync(path.join(root,'public/app.js'),'utf8');
 const api=fs.readFileSync(path.join(root,'public/api-client.js'),'utf8');
 const server=fs.readFileSync(path.join(root,'src/server.js'),'utf8');
+const sds=fs.readFileSync(path.join(root,'src/sds.js'),'utf8');
 
 if(!app.includes("if(page==='settings')return renderSettings();"))fail('Settings must use its dedicated renderer');
 if(!app.includes('async function renderSettings()'))fail('Dedicated Settings renderer is missing');
@@ -53,7 +55,6 @@ const requiredRoutes=[
   "app.post('/api/sds/:id/file'",
   "app.get('/api/sds/:id/file/:version'",
   "app.delete('/api/sds/:id/file/:version'",
-  "app.post('/api/sds/:id/import'",
   "registerLimsRoutes({app,pool,auth,audit})"
 ];
 for(const route of requiredRoutes){
@@ -61,7 +62,7 @@ for(const route of requiredRoutes){
 }
 
 const frontendAdvertisesSdsImport=app.includes('EWASCO_API.sdsImport');
-const backendProvidesSdsImport=server.includes("app.post('/api/sds/:id/import'");
+const backendProvidesSdsImport=server.includes("app.post('/api/sds/:id/import'")||sds.includes("app.post('/api/sds/:id/import'");
 if(frontendAdvertisesSdsImport!==backendProvidesSdsImport){
   fail('SDS automatic-import frontend/backend contract is inconsistent');
 }
