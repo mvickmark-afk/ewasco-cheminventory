@@ -9,6 +9,7 @@ const runtimeFiles=[
   'src/permissions.js',
   'src/migrate.js',
   'src/seed-admin.js',
+  'src/sds.js',
   'public/app.js',
   'public/api-client.js'
 ];
@@ -32,6 +33,7 @@ if(/<script>[ \t\r\n]*(?!src=)/i.test(index))fail('Production frontend contains 
 const app=fs.readFileSync(path.join(root,'public/app.js'),'utf8');
 const api=fs.readFileSync(path.join(root,'public/api-client.js'),'utf8');
 const server=fs.readFileSync(path.join(root,'src/server.js'),'utf8');
+const sds=fs.readFileSync(path.join(root,'src/sds.js'),'utf8');
 
 if(!app.includes("if(page==='settings')return renderSettings();"))fail('Settings must use its dedicated renderer');
 if(!app.includes('async function renderSettings()'))fail('Dedicated Settings renderer is missing');
@@ -60,9 +62,10 @@ for(const route of requiredRoutes){
 }
 
 const frontendAdvertisesSdsImport=app.includes('EWASCO_API.sdsImport');
-const backendProvidesSdsImport=server.includes("app.post('/api/sds/:id/import'");
+const sdsImportOccurrences=sds.split("app.post('/api/sds/:id/import'").length-1;
+const backendProvidesSdsImport=sdsImportOccurrences===1;
 if(frontendAdvertisesSdsImport!==backendProvidesSdsImport){
-  fail('SDS automatic-import frontend/backend contract is inconsistent');
+  fail(`SDS automatic-import frontend/backend contract is inconsistent; backend route occurrences: ${sdsImportOccurrences}`);
 }
 
 console.log(JSON.stringify({

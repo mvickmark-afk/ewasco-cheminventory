@@ -8,6 +8,7 @@ const read=rel=>fs.readFileSync(path.join(root,rel),'utf8');
 const app=read('public/app.js');
 const api=read('public/api-client.js');
 const server=read('src/server.js');
+const sds=read('src/sds.js');
 
 test('production frontend points to the server-served application assets',()=>{
   const index=read('public/index.html');
@@ -47,6 +48,6 @@ test('critical backend contracts remain registered',()=>{
 test('SDS automatic import cannot silently diverge between frontend and backend',()=>{
   assert.equal(
     app.includes('EWASCO_API.sdsImport'),
-    server.includes("app.post('/api/sds/:id/import'")
+    server.includes("app.post('/api/sds/:id/import'")||sds.includes("app.post('/api/sds/:id/import'")
   );
 });

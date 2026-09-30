@@ -30,7 +30,7 @@ export function validate(entity,input){
   if(entity==='chemicals')return z.object({id:idSchema,name:z.string().trim().min(1).max(200),quantity:z.coerce.number().finite().nonnegative().optional(),unit:units.optional(),expiry:z.string().date().optional(),cas:cas.optional()}).passthrough().parse(base);
   if(entity==='water')return z.object({id:idSchema,qty:z.coerce.number().finite().nonnegative(),plantVolume:z.coerce.number().finite().positive(),date:z.string().date()}).passthrough().parse(base);
   if(entity==='equipment')return z.object({id:idSchema,name:z.string().trim().min(1).max(200)}).passthrough().parse(base);
-  if(entity==='sds')return z.object({id:idSchema,chemicalId:idSchema,revisionDate:z.string().date().optional()}).passthrough().parse(base);
+  if(entity==='sds')return z.object({id:idSchema,chemicalId:idSchema.optional(),revisionDate:z.string().date().optional()}).passthrough().parse(base);
   return base;
 }
 
