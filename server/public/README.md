@@ -18,3 +18,15 @@ The existing root `Index.html` remains the original UI. To move it from browser-
 Do not keep passwords or session tokens in `localStorage`. The server uses an HttpOnly cookie. The API also returns `_version`; pass this value on updates to detect concurrent edits rather than silently overwriting another user's changes.
 
 Because the GitHub file is a compact single-file application, the inline functions need to be changed at their mutation points rather than replacing all localStorage calls blindly. The adapter provides the complete authenticated API surface for that migration.
+
+
+## Production source of truth
+
+The deployed UI is **only**:
+- `server/public/index.html`
+- `server/public/app.js`
+- `server/public/api-client.js`
+
+The former root browser-only application is archived at `legacy/Index.html`. Do not make production changes there.
+
+Production backend changes belong under `server/src/`, with new feature logic isolated in dedicated modules where practical. Avoid inserting large feature blocks directly into `server/src/server.js`.
