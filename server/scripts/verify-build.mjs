@@ -27,7 +27,7 @@ for(const rel of runtimeFiles){
 const index=fs.readFileSync(path.join(root,'public/index.html'),'utf8');
 if(!index.includes('src="/api-client.js'))fail('Production frontend must load /api-client.js');
 if(!index.includes('src="/app.js'))fail('Production frontend must load /app.js');
-if(/<script>s*(?!src=)/i.test(index))fail('Production frontend contains an inline application script');
+if(/<script>[ \t\r\n]*(?!src=)/i.test(index))fail('Production frontend contains an inline application script');
 
 const app=fs.readFileSync(path.join(root,'public/app.js'),'utf8');
 const api=fs.readFileSync(path.join(root,'public/api-client.js'),'utf8');
@@ -40,8 +40,8 @@ if(!app.includes("EWASCO_API.update('settings'"))fail('Settings editor must upda
 if(!api.includes("login:(u,p)=>api('/auth/login'"))fail('Login API adapter is missing');
 if(!api.includes("csrf().catch(()=>{})"))fail('CSRF client bootstrap is missing');
 
-const apiMethods=new Set([...api.matchAll(/(?:^|[,{])s*([A-Za-z_$][w$]*)s*:/g)].map(m=>m[1]));
-const apiCalls=new Set([...app.matchAll(/EWASCO_API.([A-Za-z_$][w$]*)/g)].map(m=>m[1]));
+const apiMethods=new Set([...api.matchAll(/(?:^|[,{])[ \t\r\n]*([A-Za-z_$][A-Za-z0-9_$]*)[ \t\r\n]*:/g)].map(m=>m[1]));
+const apiCalls=new Set([...app.matchAll(/EWASCO_API[.]([A-Za-z_$][A-Za-z0-9_$]*)/g)].map(m=>m[1]));
 for(const name of apiCalls){
   if(!apiMethods.has(name))fail(`Frontend calls missing API adapter method: ${name}`);
 }
