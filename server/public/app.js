@@ -156,7 +156,36 @@ const html='<div class="overlay" id="sdsHistoryModal"><div class="card modal"><d
 document.body.insertAdjacentHTML('beforeend',html);$('shc').onclick=()=>$('sdsHistoryModal').remove();document.querySelectorAll('[data-sds-delete]').forEach(b=>b.onclick=async()=>{if(confirm('Delete this SDS version?')){try{await EWASCO_API.sdsDelete(id,b.dataset.sdsDelete);$('sdsHistoryModal').remove();await renderLegacy('sds')}catch(e){alert(e.message)}}});
 }catch(e){alert(e.message)}
 }
-function legacyEdit(entity,rows,id){const rec=id?rows.find(r=>r.id===id):{id:entity.toUpperCase()+'-'+crypto.randomUUID().slice(0,8)};const html='<div class="overlay" id="legacyModal"><div class="card modal"><div class="bar"><h3>'+esc(id?'Edit':'Create')+' '+esc(entity)+'</h3><span class="spacer"></span><button class="btn" id="lc">Close</button></div><textarea id="lj" class="input" style="min-height:300px">'+esc(JSON.stringify(rec,null,2))+'</textarea><p id="le" class="error"></p><div class="bar"><span class="spacer"></span><button class="btn primary" id="ls">Save</button></div></div></div>';document.body.insertAdjacentHTML('beforeend',html);$('lc').onclick=()=>$('legacyModal').remove();$('ls').onclick=async()=>{try{const next=JSON.parse($('lj').value);const r=id?await EWASCO_API.update(entity,id,next,next._version||0):await EWASCO_API.create(entity,next);$('legacyModal').remove();toast('Saved '+r.id,true);await renderLegacy(entity)}catch(e){$('le').textContent=e.message}}}
+function legacyEdit(entity,rows,id){
+  if(entity==='sds'&&!id)return sdsCreateDialog(rows);
+  const rec=id?rows.find(r=>r.id===id):{id:entity.toUpperCase()+'-'+crypto.randomUUID().slice(0,8)};
+  const html='<div class="overlay" id="legacyModal"><div class="card modal"><div class="bar"><h3>'+esc(id?'Edit':'Create')+' '+esc(entity)+'</h3><span class="spacer"></span><button class="btn" id="lc">Close</button></div><textarea id="lj" class="input" style="min-height:300px">'+esc(JSON.stringify(rec,null,2))+'</textarea><p id="le" class="error"></p><div class="bar"><span class="spacer"></span><button class="btn primary" id="ls">Save</button></div></div></div>';
+  document.body.insertAdjacentHTML('beforeend',html);$('lc').onclick=()=>$('legacyModal').remove();
+  $('ls').onclick=async()=>{try{const next=JSON.parse($('lj').value);const r=id?await EWASCO_API.update(entity,id,next,next._version||0):await EWASCO_API.create(entity,next);$('legacyModal').remove();toast('Saved '+r.id,true);await renderLegacy(entity)}catch(e){$('le').textContent=e.message}};
+}
+async function sdsCreateDialog(rows){
+  const id='SDS-'+crypto.randomUUID().slice(0,8);
+  const html='<div class="overlay" id="sdsCreateModal"><div class="card modal"><div class="bar"><h3>New SDS / MSDS</h3><span class="spacer"></span><button class="btn" id="scc">Close</button></div>'+
+  '<label class="mini">SDS / MSDS name *</label><input id="sn" class="input" placeholder="e.g. Sodium Hypochlorite SDS">'+
+  '<label class="mini">Manufacturer</label><input id="sm" class="input">'+
+  '<label class="mini">Product / Chemical</label><input id="sp" class="input">'+
+  '<label class="mini">CAS number</label><input id="scas" class="input">'+
+  '<label class="mini">Document *</label><input id="sfile" type="file" class="input" accept=".docx,.pdf,.xlsx">'+
+  '<p class="mini muted">Accepted: Word (.docx), PDF (.pdf), Excel (.xlsx). Maximum 10 MB. JSON is not accepted.</p>'+
+  '<label class="mini">Revision date (optional)</label><input id="srev" type="date" class="input"><p id="sce" class="error"></p>'+
+  '<div class="bar"><span class="spacer"></span><button class="btn primary" id="scs">Create & Upload</button></div></div></div>';
+  document.body.insertAdjacentHTML('beforeend',html);$('scc').onclick=()=>$('sdsCreateModal').remove();
+  $('scs').onclick=async()=>{try{
+    const name=$('sn').value.trim(),file=$('sfile').files[0];
+    if(!name)throw Error('Enter the SDS / MSDS name');
+    if(!file)throw Error('Select a Word, PDF, or Excel file');
+    if(!/\.(docx|pdf|xlsx)$/i.test(file.name))throw Error('Only Word (.docx), PDF (.pdf), or Excel (.xlsx) files are accepted');
+    if(file.size>10*1024*1024)throw Error('File is larger than the 10 MB limit');
+    await EWASCO_API.create('sds',{id,name,manufacturer:$('sm').value.trim(),product:$('sp').value.trim(),cas:$('scas').value.trim()});
+    await EWASCO_API.sdsUpload(id,file,$('srev').value);
+    $('sdsCreateModal').remove();toast('SDS created and uploaded',true);await renderLegacy('sds');
+  }catch(e){$('sce').textContent=e.message}};
+}
 $('loginForm').onsubmit=async e=>{e.preventDefault();try{const x=await EWASCO_API.login($('username').value,$('password').value);state.user=x.user;showApp();await go('dashboard')}catch(e){$('loginError').textContent=e.message}};
 $('logout').onclick=async()=>{try{await EWASCO_API.logout()}finally{location.reload()}};
 boot();
