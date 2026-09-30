@@ -71,7 +71,7 @@ function uniqueCas(values){
   return null;
 }
 
-function parseRevisionDate(value){
+export function parseRevisionDate(value){
   const raw=clean(value);
   if(!raw) return null;
   let y,m,d;
