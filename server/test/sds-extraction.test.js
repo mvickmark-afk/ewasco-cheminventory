@@ -66,8 +66,8 @@ test('accepts abbreviated month-name dates',()=>{
   assert.equal(parseRevisionDate('September 30, 2026'),'2026-09-30');
 });
 
-test('reports unsupported or ambiguous revision dates as controlled validation errors',()=>{
-  assert.throws(()=>parseRevisionDate('September 30th, 2026'),e=>e?.statusCode===422);
+test('reports ambiguous revision dates as controlled validation errors',()=>{
+  assert.equal(parseRevisionDate('September 30th, 2026'),'2026-09-30');
   assert.throws(()=>parseRevisionDate('09/10/2026'),e=>e?.statusCode===422);
 });
 
