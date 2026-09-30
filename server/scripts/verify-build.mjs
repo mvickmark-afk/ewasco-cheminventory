@@ -56,7 +56,8 @@ const requiredRoutes=[
   "registerLimsRoutes({app,pool,auth,audit})"
 ];
 for(const route of requiredRoutes){
-  if(!server.includes(route))fail(`Required backend route/registration missing: ${route}`);
+  const occurrences=server.split(route).length-1;
+  if(occurrences!==1)fail(`Expected exactly one backend route/registration for ${route}; found ${occurrences}`);
 }
 
 const frontendAdvertisesSdsImport=app.includes('EWASCO_API.sdsImport');
