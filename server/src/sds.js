@@ -72,7 +72,7 @@ function uniqueCas(values){
 }
 
 export function parseRevisionDate(value){
-  const raw=clean(value).replace(/\\b(\\d{1,2})(st|nd|rd|th)\\b/gi,'$1');
+  const raw=clean(value).replace(/\b(\d{1,2})(st|nd|rd|th)\b/gi,'$1');
   if(!raw)return null;
   const invalid=message=>{throw Object.assign(new Error(message),{statusCode:422})};
   const months={january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12,
@@ -80,17 +80,17 @@ export function parseRevisionDate(value){
   const candidates=[];
   const push=(y,m,d)=>{if(Number.isInteger(y)&&Number.isInteger(m)&&Number.isInteger(d))candidates.push({y,m,d})};
 
-  for(const x of raw.matchAll(/\\b(\\d{4})[.\\/-](\\d{1,2})[.\\/-](\\d{1,2})\\b/g))push(+x[1],+x[2],+x[3]);
+  for(const x of raw.matchAll(/\b(\d{4})[.\\/-](\d{1,2})[.\\/-](\d{1,2})\b/g))push(+x[1],+x[2],+x[3]);
 
-  for(const x of raw.matchAll(/\\b(\\d{1,2})[.\\/-](\\d{1,2})[.\\/-](\\d{4})\\b/g)){
+  for(const x of raw.matchAll(/\b(\d{1,2})[.\\/-](\d{1,2})[.\\/-](\d{4})\b/g)){
     const a=+x[1],b=+x[2],y=+x[3];
     if(a>12&&b<=12)push(y,b,a);
     else if(b>12&&a<=12)push(y,a,b);
     else if(a<=12&&b<=12)invalid('Revision date is ambiguous; automatic extraction will not guess the date order');
   }
 
-  for(const x of raw.matchAll(/\\b(\\d{1,2})[- ]([A-Za-z]{3,12})[, -]+(\\d{4})\\b/g))push(+x[3],months[x[2].toLowerCase()],+x[1]);
-  for(const x of raw.matchAll(/\\b([A-Za-z]{3,12})[- ](\\d{1,2}),?[ -]+(\\d{4})\\b/g))push(+x[3],months[x[1].toLowerCase()],+x[2]);
+  for(const x of raw.matchAll(/\b(\d{1,2})[- ]([A-Za-z]{3,12})[, -]+(\d{4})\b/g))push(+x[3],months[x[2].toLowerCase()],+x[1]);
+  for(const x of raw.matchAll(/\b([A-Za-z]{3,12})[- ](\d{1,2}),?[ -]+(\d{4})\b/g))push(+x[3],months[x[1].toLowerCase()],+x[2]);
 
   const distinct=[...new Set(candidates.filter(x=>x.m&&x.d).map(x=>JSON.stringify(x)))].map(JSON.parse);
   if(distinct.length!==1){
