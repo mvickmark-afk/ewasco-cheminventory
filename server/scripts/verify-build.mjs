@@ -53,6 +53,7 @@ const requiredRoutes=[
   "app.post('/api/sds/:id/file'",
   "app.get('/api/sds/:id/file/:version'",
   "app.delete('/api/sds/:id/file/:version'",
+  "app.post('/api/sds/:id/import'",
   "registerLimsRoutes({app,pool,auth,audit})"
 ];
 for(const route of requiredRoutes){
