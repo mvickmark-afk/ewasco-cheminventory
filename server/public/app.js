@@ -181,7 +181,7 @@ async function sdsCreateDialog(rows){
     if(!file)throw Error('Select a Word, PDF, or Excel file');
     if(!/\.(docx|pdf|xlsx)$/i.test(file.name))throw Error('Only Word (.docx), PDF (.pdf), or Excel (.xlsx) files are accepted');
     if(file.size>10*1024*1024)throw Error('File is larger than the 10 MB limit');
-    await EWASCO_API.create('sds',{id,name,manufacturer:$('sm').value.trim(),product:$('sp').value.trim(),cas:$('scas').value.trim()});
+    await EWASCO_API.create('sds',{id,chemicalId:id,name,manufacturer:$('sm').value.trim(),product:$('sp').value.trim(),cas:$('scas').value.trim()});
     await EWASCO_API.sdsUpload(id,file,$('srev').value);
     $('sdsCreateModal').remove();toast('SDS created and uploaded',true);await renderLegacy('sds');
   }catch(e){$('sce').textContent=e.message}};
