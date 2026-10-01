@@ -65,10 +65,7 @@ function findLabeledValue(lines,patterns){
 }
 
 function uniqueCas(values){
-  const distinct=[...new Set(values.filter(Boolean))];
-  if(distinct.length===1)return distinct[0];
-  if(distinct.length>1)throw Error('Multiple CAS numbers were detected; automatic extraction will not guess which chemical is intended');
-  return null;
+  return [...new Set(values.filter(Boolean))];
 }
 
 export function parseRevisionDate(value){
@@ -112,17 +109,18 @@ export function extractSdsMetadata(input){
   const manufacturer=findLabeledValue(lines,labelPatterns.manufacturer);
   const product=findLabeledValue(lines,labelPatterns.product);
   const labeledCas=findLabeledValue(lines,labelPatterns.cas);
-  const cas=uniqueCas([...(labeledCas?labeledCas.match(casPattern)||[]:[]),...(labeledCas?[]:text.match(casPattern)||[])]);
+  const casCandidates=uniqueCas([...(labeledCas?labeledCas.match(casPattern)||[]:[]),...(labeledCas?[]:text.match(casPattern)||[])]);
+  const cas=casCandidates.length===1?casCandidates[0]:null;
   const revisionRaw=findLabeledValue(lines,labelPatterns.revisionDate);
-  const revisionDate=revisionRaw?parseRevisionDate(revisionRaw):null;
+  let revisionDate=null;
+  if(revisionRaw){try{revisionDate=parseRevisionDate(revisionRaw)}catch{}}
   const missing=[];
   if(!sdsName)missing.push('SDS/MSDS name');
   if(!manufacturer)missing.push('Manufacturer');
   if(!product)missing.push('Product/Chemical');
   if(!cas)missing.push('CAS number');
   if(!revisionDate)missing.push('Revision date');
-  if(missing.length)throw Object.assign(new Error(`Required SDS metadata not unambiguously identified: ${missing.join(', ')}`),{statusCode:422,missing});
-  return {name:sdsName,manufacturer,product,cas,revisionDate};
+  return {name:sdsName,manufacturer,product,cas,casCandidates,revisionDate,revisionRaw,requiresReview:missing.length>0,missing};
 }
 
 export function registerSdsRoutes({app,pool,auth,upload,inspect,audit,dir}){
@@ -152,7 +150,8 @@ export function registerSdsRoutes({app,pool,auth,upload,inspect,audit,dir}){
         cas:metadata.cas,
         revisionDate:metadata.revisionDate,
         metadataSource:'document',
-        metadataExtraction:'deterministic'
+        metadataExtraction:'deterministic',
+        status:metadata.requiresReview?'PENDING_REVIEW':'ACTIVE'
       };
       let record;
       if(existing.rowCount){
@@ -163,9 +162,9 @@ export function registerSdsRoutes({app,pool,auth,upload,inspect,audit,dir}){
       const q=await c.query('SELECT COALESCE(max(version),0)+1 version FROM sds_versions WHERE organization_id=$1 AND sds_id=$2',[req.user.organization_id,sdsId]);
       const version=q.rows[0].version;
       await c.query('INSERT INTO sds_versions(organization_id,sds_id,version,file_name,mime,size,stored_name,sha256,revision_date,uploaded_by) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',[req.user.organization_id,sdsId,version,req.file.originalname,info.mime,req.file.size,req.file.filename,info.sha256,metadata.revisionDate,req.user.id]);
-      await audit(c,req.user,'sds_auto_import','sds',sdsId,{version,fileName:req.file.originalname,mime:info.mime,sha256:info.sha256,metadata});
+      await audit(c,req.user,metadata.requiresReview?'sds_import_pending_review':'sds_auto_import','sds',sdsId,{version,fileName:req.file.originalname,mime:info.mime,sha256:info.sha256,metadata});
       await c.query('COMMIT');committed=true;
-      res.status(201).json({id:sdsId,version,metadata,fileName:req.file.originalname});
+      res.status(201).json({id:sdsId,version,metadata,fileName:req.file.originalname,requiresReview:metadata.requiresReview,missing:metadata.missing,casCandidates:metadata.casCandidates});
     }catch(e){
       await c.query('ROLLBACK').catch(()=>{});
       if(req.file&&!committed)await fs.unlink(req.file.path).catch(()=>{});
