@@ -17,7 +17,11 @@ test('extracts all required SDS metadata from explicit labelled fields',()=>{
     manufacturer:'EWASCO',
     product:'SODIUM HYPOCHLORITE',
     cas:'7681-52-9',
-    revisionDate:'2026-09-30'
+    casCandidates:['7681-52-9'],
+    revisionDate:'2026-09-30',
+    revisionRaw:'30 September 2026',
+    requiresReview:false,
+    missing:[]
   });
 });
 
@@ -33,23 +37,30 @@ test('rejects ambiguous numeric dates instead of guessing',()=>{
   assert.throws(()=>parseRevisionDate('09/10/2026'),/ambiguous/i);
 });
 
-test('rejects multiple CAS numbers when no labelled CAS uniquely identifies one',()=>{
-  assert.throws(()=>extractSdsMetadata([
+test('returns multiple CAS candidates for manual review without guessing',()=>{
+  const r=extractSdsMetadata([
     'SDS Name: SODIUM',
     'Manufacturer: EWASCO',
     'Product Identifier: SODIUM HYPOCHLORITE',
     'CAS numbers: 7681-52-9 and 7732-18-5',
     'Revision Date: 2026-09-30'
-  ].join('\n')),/Multiple CAS numbers/i);
+  ].join('\n'));
+  assert.equal(r.cas,null);
+  assert.deepEqual(r.casCandidates,['7681-52-9','7732-18-5']);
+  assert.equal(r.requiresReview,true);
+  assert.match(r.missing.join(','),/CAS number/);
 });
 
-test('fails rather than guessing when required metadata is missing',()=>{
-  assert.throws(()=>extractSdsMetadata([
+test('returns missing metadata for controlled manual review',()=>{
+  const r=extractSdsMetadata([
     'SDS Name: SODIUM',
     'Manufacturer: EWASCO',
     'Product Identifier: SODIUM HYPOCHLORITE',
     'CAS No: 7681-52-9'
-  ].join('\n')),/Revision date/i);
+  ].join('\n'));
+  assert.equal(r.revisionDate,null);
+  assert.equal(r.requiresReview,true);
+  assert.deepEqual(r.missing,['Revision date']);
 });
 
 test('SDS records may exist before a chemical link is known',()=>{
