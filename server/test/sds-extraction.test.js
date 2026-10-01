@@ -17,7 +17,11 @@ test('extracts all required SDS metadata from explicit labelled fields',()=>{
     manufacturer:'EWASCO',
     product:'SODIUM HYPOCHLORITE',
     cas:'7681-52-9',
-    revisionDate:'2026-09-30'
+    casCandidates:['7681-52-9'],
+    revisionDate:'2026-09-30',
+    revisionRaw:'30 September 2026',
+    requiresReview:false,
+    missing:[]
   });
 });
 
