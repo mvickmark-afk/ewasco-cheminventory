@@ -66,9 +66,8 @@ function findLabeledValue(lines,patterns){
 
 function uniqueCas(values){
   const distinct=[...new Set(values.filter(Boolean))];
-  if(distinct.length===1)return distinct[0];
-  if(distinct.length>1)throw Error('Multiple CAS numbers were detected; automatic extraction will not guess which chemical is intended');
-  return null;
+  if(distinct.length>1)return null;
+  return distinct[0]||null;
 }
 
 export function parseRevisionDate(value){
@@ -104,6 +103,14 @@ export function parseRevisionDate(value){
   return dt.toISOString().slice(0,10);
 }
 
+function safeParseRevisionDate(value){
+  try{
+    return parseRevisionDate(value);
+  }catch{
+    return null;
+  }
+}
+
 export function extractSdsMetadata(input){
   const text=String(input??'').replace(/\r/g,'\n').replace(/\n+/g,'\n');
   if(text.length>MAX_TEXT_LENGTH)throw Error('Extracted document text exceeds the safety limit');
@@ -114,15 +121,22 @@ export function extractSdsMetadata(input){
   const labeledCas=findLabeledValue(lines,labelPatterns.cas);
   const cas=uniqueCas([...(labeledCas?labeledCas.match(casPattern)||[]:[]),...(labeledCas?[]:text.match(casPattern)||[])]);
   const revisionRaw=findLabeledValue(lines,labelPatterns.revisionDate);
-  const revisionDate=revisionRaw?parseRevisionDate(revisionRaw):null;
-  const missing=[];
-  if(!sdsName)missing.push('SDS/MSDS name');
-  if(!manufacturer)missing.push('Manufacturer');
-  if(!product)missing.push('Product/Chemical');
-  if(!cas)missing.push('CAS number');
-  if(!revisionDate)missing.push('Revision date');
-  if(missing.length)throw Object.assign(new Error(`Required SDS metadata not unambiguously identified: ${missing.join(', ')}`),{statusCode:422,missing});
-  return {name:sdsName,manufacturer,product,cas,revisionDate};
+  const revisionDate=revisionRaw?safeParseRevisionDate(revisionRaw):null;
+  const missing=[
+    !sdsName && 'SDS/MSDS name',
+    !manufacturer && 'Manufacturer',
+    !product && 'Product/Chemical',
+    !cas && 'CAS number',
+    !revisionDate && 'Revision date'
+  ].filter(Boolean);
+  return {
+    name:sdsName||'',
+    manufacturer:manufacturer||'',
+    product:product||'',
+    cas:cas||'',
+    revisionDate:revisionDate||'',
+    missing
+  };
 }
 
 export function registerSdsRoutes({app,pool,auth,upload,inspect,audit,dir}){
@@ -141,6 +155,7 @@ export function registerSdsRoutes({app,pool,auth,upload,inspect,audit,dir}){
       const buffer=await fs.readFile(req.file.path);
       const extracted=await extractor.extractText({input:buffer,type:'buffer'});
       const metadata=extractSdsMetadata(extracted);
+      const requiresReview=metadata.missing.length>0;
       await c.query('BEGIN');
       const existing=await c.query('SELECT data,version FROM records WHERE organization_id=$1 AND entity=\'sds\' AND id=$2 FOR UPDATE',[req.user.organization_id,sdsId]);
       const data={
@@ -152,7 +167,8 @@ export function registerSdsRoutes({app,pool,auth,upload,inspect,audit,dir}){
         cas:metadata.cas,
         revisionDate:metadata.revisionDate,
         metadataSource:'document',
-        metadataExtraction:'deterministic'
+        metadataExtraction:requiresReview?'deterministic_partial':'deterministic',
+        requiresReview
       };
       let record;
       if(existing.rowCount){
@@ -162,10 +178,10 @@ export function registerSdsRoutes({app,pool,auth,upload,inspect,audit,dir}){
       }
       const q=await c.query('SELECT COALESCE(max(version),0)+1 version FROM sds_versions WHERE organization_id=$1 AND sds_id=$2',[req.user.organization_id,sdsId]);
       const version=q.rows[0].version;
-      await c.query('INSERT INTO sds_versions(organization_id,sds_id,version,file_name,mime,size,stored_name,sha256,revision_date,uploaded_by) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',[req.user.organization_id,sdsId,version,req.file.originalname,info.mime,req.file.size,req.file.filename,info.sha256,metadata.revisionDate,req.user.id]);
-      await audit(c,req.user,'sds_auto_import','sds',sdsId,{version,fileName:req.file.originalname,mime:info.mime,sha256:info.sha256,metadata});
+      await c.query('INSERT INTO sds_versions(organization_id,sds_id,version,file_name,mime,size,stored_name,sha256,revision_date,uploaded_by) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',[req.user.organization_id,sdsId,version,req.file.originalname,info.mime,req.file.size,req.file.filename,info.sha256,metadata.revisionDate||null,req.user.id]);
+      await audit(c,req.user,'sds_auto_import','sds',sdsId,{version,fileName:req.file.originalname,mime:info.mime,sha256:info.sha256,metadata,requiresReview});
       await c.query('COMMIT');committed=true;
-      res.status(201).json({id:sdsId,version,metadata,fileName:req.file.originalname});
+      res.status(requiresReview?200:201).json({id:sdsId,version,metadata,fileName:req.file.originalname,requiresReview,missing:metadata.missing});
     }catch(e){
       await c.query('ROLLBACK').catch(()=>{});
       if(req.file&&!committed)await fs.unlink(req.file.path).catch(()=>{});
