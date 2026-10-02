@@ -140,6 +140,10 @@ export function registerSdsRoutes({app,pool,auth,upload,inspect,audit,dir}){
       const buffer=await fs.readFile(req.file.path);
       const extracted=await extractor.extractText({input:buffer,type:'buffer'});
       const metadata=extractSdsMetadata(extracted);
+      if(!metadata.name){
+        const fallbackName=metadata.product||path.basename(req.file.originalname,path.extname(req.file.originalname)).replace(/[_-]+/g,' ').trim();
+        if(fallbackName)metadata.name=fallbackName;
+      }
       await c.query('BEGIN');
       const existing=await c.query('SELECT data,version FROM records WHERE organization_id=$1 AND entity=\'sds\' AND id=$2 FOR UPDATE',[req.user.organization_id,sdsId]);
       const data={
