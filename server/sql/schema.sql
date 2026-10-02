@@ -392,3 +392,22 @@ CREATE INDEX IF NOT EXISTS deviations_org_status_idx ON deviations(organization_
 CREATE INDEX IF NOT EXISTS capa_org_status_idx ON capa_actions(organization_id,status);
 CREATE INDEX IF NOT EXISTS reports_org_status_idx ON reports(organization_id,status);
 CREATE INDEX IF NOT EXISTS notifications_user_unread_idx ON notifications(organization_id,user_id,read_at,created_at DESC);
+
+
+CREATE TABLE IF NOT EXISTS quality_events(
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  sample_test_id uuid REFERENCES sample_tests(id) ON DELETE CASCADE,
+  result_id uuid REFERENCES results(id) ON DELETE SET NULL,
+  event_type text NOT NULL CHECK(event_type IN ('OOS','OOT')),
+  trigger_source text NOT NULL,
+  status text NOT NULL DEFAULT 'OPEN' CHECK(status IN ('OPEN','INVESTIGATING','CLOSED')),
+  description text,
+  detected_by uuid REFERENCES users(id) ON DELETE SET NULL,
+  detected_at timestamptz NOT NULL DEFAULT now(),
+  closed_by uuid REFERENCES users(id) ON DELETE SET NULL,
+  closed_at timestamptz,
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb CHECK(jsonb_typeof(metadata)='object')
+);
+CREATE INDEX IF NOT EXISTS quality_events_org_status_idx ON quality_events(organization_id,status,detected_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS quality_events_open_result_type_uq ON quality_events(organization_id,result_id,event_type) WHERE status<>'CLOSED' AND result_id IS NOT NULL;
