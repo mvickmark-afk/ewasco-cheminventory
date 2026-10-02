@@ -1,0 +1,13 @@
+# Local secrets and runtime state
+.env
+.env.*
+!.env.example
+node_modules/
+*.backup
+*.bak
+*.tmp
+.DS_Store
+Thumbs.db
+
+# Local duplicate/work directories
+server/ewasco-cheminventory/

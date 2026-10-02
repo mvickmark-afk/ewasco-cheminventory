@@ -30,7 +30,7 @@ export function validate(entity,input){
   if(entity==='chemicals')return z.object({id:idSchema,name:z.string().trim().min(1).max(200),quantity:z.coerce.number().finite().nonnegative().optional(),unit:units.optional(),expiry:z.string().date().optional(),cas:cas.optional()}).passthrough().parse(base);
   if(entity==='water')return z.object({id:idSchema,qty:z.coerce.number().finite().nonnegative(),plantVolume:z.coerce.number().finite().positive(),date:z.string().date()}).passthrough().parse(base);
   if(entity==='equipment')return z.object({id:idSchema,name:z.string().trim().min(1).max(200)}).passthrough().parse(base);
-  if(entity==='sds')return z.object({id:idSchema,chemicalId:idSchema.optional(),revisionDate:z.string().date().optional()}).passthrough().parse(base);
+  if(entity==='sds'){const schema=z.object({id:idSchema,chemicalId:idSchema.optional(),name:z.string().trim().min(1).max(200).optional(),manufacturer:z.string().trim().min(1).max(200).optional(),product:z.string().trim().min(1).max(300).optional(),cas:cas.optional(),revisionDate:z.string().date().optional(),status:z.enum(['PENDING_REVIEW','ACTIVE']).optional()}).passthrough().superRefine((d,ctx)=>{if(d.status==='ACTIVE'){for(const [key,label] of [['name','SDS/MSDS name'],['manufacturer','Manufacturer'],['product','Product/Chemical'],['cas','CAS number'],['revisionDate','Revision date']])if(!d[key])ctx.addIssue({code:z.ZodIssueCode.custom,path:[key],message:label+' is required before activation'});}});try{return schema.parse(base)}catch(e){e.statusCode=422;throw e}}
   return base;
 }
 
