@@ -23,5 +23,5 @@ test('incomplete active SDS validation returns 422',()=>{
 });
 
 test('pending-review SDS may retain missing metadata',()=>{
-  assert.doesNotThrow(()=>validate('sds',{id:'SDS-3',status:'PENDING_REVIEW',cas:null}));
+  assert.doesNotThrow(()=>validate('sds',{id:'SDS-3',status:'PENDING_REVIEW'}));
 });
