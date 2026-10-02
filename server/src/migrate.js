@@ -24,6 +24,7 @@ try{
   await pool.query("INSERT INTO schema_migrations(version) VALUES('008-ewasco-lims-phase3-trend-rules') ON CONFLICT DO NOTHING");
   await pool.query("INSERT INTO schema_migrations(version) VALUES('009-ewasco-lims-phase4-instrument-controls') ON CONFLICT DO NOTHING");
   await pool.query("INSERT INTO schema_migrations(version) VALUES('010-ewasco-lims-phase5-qms-foundation') ON CONFLICT DO NOTHING");
+  await pool.query("INSERT INTO schema_migrations(version) VALUES('011-ewasco-lims-phase6-reporting-integrations') ON CONFLICT DO NOTHING");
   await pool.query('COMMIT');
   console.log(JSON.stringify({event:'migration_verified',tables:requiredTables,lims:true}));
 }catch(e){await pool.query('ROLLBACK').catch(()=>{});throw e}finally{await pool.end()}

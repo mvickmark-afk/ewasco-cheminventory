@@ -288,4 +288,67 @@ export function registerLimsPhaseRoutes({app,pool,audit}){
   app.patch('/api/lims/change-controls/:id/status',authenticated,setup,async(req,res,next)=>{try{const d=z.object({status:z.enum(['DRAFT','REVIEW','APPROVED','IMPLEMENTED','CLOSED']),comments:z.string().max(2000).optional().nullable()}).parse(req.body);const q0=await pool.query('SELECT * FROM change_controls WHERE organization_id=$1 AND id=$2',[req.user.organization_id,req.params.id]);if(!q0.rowCount)return res.status(404).json({error:'Change control not found'});const from=q0.rows[0].status;const transitions={DRAFT:['REVIEW'],REVIEW:['APPROVED','DRAFT'],APPROVED:['IMPLEMENTED'],IMPLEMENTED:['CLOSED'],CLOSED:[]};if(!transitions[from]?.includes(d.status))return res.status(409).json({error:'Invalid change-control status transition'});if(d.status==='IMPLEMENTED'&&!q0.rows[0].impact_assessment)return res.status(422).json({error:'Impact assessment is required before implementation'});const q=await pool.query("UPDATE change_controls SET status=$1,approved_by=CASE WHEN $1='APPROVED' THEN $2 ELSE approved_by END,implemented_at=CASE WHEN $1='IMPLEMENTED' THEN now() ELSE implemented_at END WHERE organization_id=$3 AND id=$4 RETURNING *",[d.status,req.user.id,req.user.organization_id,req.params.id]);await audit(pool,req.user,'lims_change_control_status','change_controls',req.params.id,{from,to:d.status,comments:d.comments??null});res.json(q.rows[0])}catch(e){next(e)}});
   app.get('/api/lims/qms/dashboard',authenticated,readOnly,async(req,res,next)=>{try{const q=await pool.query("SELECT (SELECT count(*) FROM deviations WHERE organization_id=$1 AND status<>'CLOSED') deviations_open,(SELECT count(*) FROM capa_actions WHERE organization_id=$1 AND status<>'CLOSED') capa_open,(SELECT count(*) FROM qms_findings WHERE organization_id=$1 AND status<>'CLOSED') findings_open,(SELECT count(*) FROM quality_events WHERE organization_id=$1 AND status<>'CLOSED') quality_events_open,(SELECT count(*) FROM training_records WHERE organization_id=$1 AND status IN ('DUE','EXPIRED','SUSPENDED')) training_attention,(SELECT count(*) FROM controlled_documents WHERE organization_id=$1 AND status IN ('REVIEW','DRAFT')) documents_pending",[req.user.organization_id]);res.json(q.rows[0])}catch(e){next(e)}});
 
+  app.get('/api/lims/reports/coa/:sampleId',authenticated,readOnly,async(req,res,next)=>{try{
+    const q=await pool.query(`SELECT s.id,s.sample_code,s.collected_at,s.received_at,s.status,
+      st.id sample_test_id,st.status test_status,tm.name method_name,tm.version method_version,
+      r.value_numeric,r.value_text,r.unit,r.result_flag,r.reviewed_at,r.approved_at,
+      sp.name parameter_name
+      FROM samples s
+      LEFT JOIN sample_tests st ON st.sample_id=s.id
+      LEFT JOIN test_methods tm ON tm.id=st.method_id
+      LEFT JOIN results r ON r.sample_test_id=st.id
+      LEFT JOIN specifications sp ON sp.id=st.specification_id
+      WHERE s.organization_id=$1 AND s.id=$2 ORDER BY sp.name NULLS LAST`,[req.user.organization_id,req.params.sampleId]);
+    if(!q.rowCount)return res.status(404).json({error:'Sample not found'});
+    const unapproved=q.rows.filter(x=>!x.approved_at);
+    if(unapproved.length)return res.status(409).json({error:'Certificate cannot be issued until all results are approved',pendingResults:unapproved.length});
+    res.json({sample:q.rows[0],results:q.rows});
+  }catch(e){next(e)}});
+  app.get('/api/lims/reports/summary',authenticated,readOnly,async(req,res,next)=>{try{
+    const q=await pool.query(`SELECT
+      (SELECT count(*) FROM samples WHERE organization_id=$1) samples_total,
+      (SELECT count(*) FROM sample_tests st JOIN samples s ON s.id=st.sample_id WHERE s.organization_id=$1) tests_total,
+      (SELECT count(*) FROM results r JOIN sample_tests st ON st.id=r.sample_test_id JOIN samples s ON s.id=st.sample_id WHERE s.organization_id=$1 AND r.result_flag='FAIL') failed_results,
+      (SELECT count(*) FROM quality_events WHERE organization_id=$1 AND status<>'CLOSED') quality_events_open,
+      (SELECT count(*) FROM analytical_batches WHERE organization_id=$1 AND status IN ('OPEN','IN_PROGRESS','COMPLETED')) batches_active`,[req.user.organization_id]);
+    res.json(q.rows[0]);
+  }catch(e){next(e)}});
+
+  app.post('/api/lims/reports',authenticated,write,async(req,res,next)=>{try{
+    const d=z.object({reportNo:text,reportType:text,sampleId:uuid.optional().nullable(),fileName:z.string().max(255).optional().nullable(),sha256:z.string().regex(/^[a-f0-9]{64}$/i).optional().nullable()}).parse(req.body);
+    if(d.sampleId){const s=await pool.query('SELECT id,status FROM samples WHERE organization_id=$1 AND id=$2',[req.user.organization_id,d.sampleId]);if(!s.rowCount)return res.status(404).json({error:'Sample not found'});}
+    const q=await pool.query('INSERT INTO reports(organization_id,report_no,report_type,sample_id,file_name,sha256) VALUES($1,$2,$3,$4,$5,$6) RETURNING *',[req.user.organization_id,d.reportNo,d.reportType,d.sampleId??null,d.fileName??null,d.sha256??null]);
+    await audit(pool,req.user,'lims_report_create','reports',q.rows[0].id,d);res.status(201).json(q.rows[0])
+  }catch(e){next(e)}});
+  app.patch('/api/lims/reports/:id/status',authenticated,write,async(req,res,next)=>{try{
+    const d=z.object({status:z.enum(['DRAFT','REVIEW','APPROVED','ISSUED','VOID'])}).parse(req.body);
+    const cur=await pool.query('SELECT * FROM reports WHERE organization_id=$1 AND id=$2',[req.user.organization_id,req.params.id]);if(!cur.rowCount)return res.status(404).json({error:'Report not found'});
+    const from=cur.rows[0].status;
+    const allowed={DRAFT:['REVIEW','VOID'],REVIEW:['DRAFT','APPROVED','VOID'],APPROVED:['ISSUED','VOID'],ISSUED:['VOID'],VOID:[]};
+    if(!allowed[from]?.includes(d.status))return res.status(409).json({error:'Invalid report status transition',from,to:d.status});
+    if(d.status==='ISSUED'&&!cur.rows[0].sample_id)return res.status(422).json({error:'Issued reports must reference a sample'});
+    if(d.status==='ISSUED'){
+      const pending=await pool.query(`SELECT count(*)::int n FROM sample_tests st LEFT JOIN results r ON r.sample_test_id=st.id WHERE st.organization_id=$1 AND st.sample_id=$2 AND (r.id IS NULL OR r.approved_at IS NULL)`,[req.user.organization_id,cur.rows[0].sample_id]);
+      if(pending.rows[0].n>0)return res.status(409).json({error:'Report cannot be issued until all sample results are approved',pendingResults:pending.rows[0].n});
+    }
+    const q=await pool.query(`UPDATE reports SET status=$1,issued_at=CASE WHEN $1='ISSUED' THEN now() ELSE issued_at END,issued_by=CASE WHEN $1='ISSUED' THEN $2 ELSE issued_by END WHERE organization_id=$3 AND id=$4 RETURNING *`,[d.status,req.user.id,req.user.organization_id,req.params.id]);
+    await audit(pool,req.user,'lims_report_status','reports',req.params.id,{from,to:d.status});res.json(q.rows[0])
+  }catch(e){next(e)}});
+  app.get('/api/lims/notifications/unread',authenticated,readOnly,async(req,res,next)=>{try{
+    const q=await pool.query('SELECT id,event_type,severity,title,message,entity,record_id,created_at FROM notifications WHERE organization_id=$1 AND user_id=$2 AND read_at IS NULL ORDER BY created_at DESC LIMIT 100',[req.user.organization_id,req.user.id]);res.json(q.rows)
+  }catch(e){next(e)}});
+  app.patch('/api/lims/notifications/:id/read',authenticated,write,async(req,res,next)=>{try{
+    const q=await pool.query('UPDATE notifications SET read_at=COALESCE(read_at,now()) WHERE organization_id=$1 AND user_id=$2 AND id=$3 RETURNING *',[req.user.organization_id,req.user.id,req.params.id]);if(!q.rowCount)return res.status(404).json({error:'Notification not found'});res.json(q.rows[0])
+  }catch(e){next(e)}});
+  app.post('/api/lims/integrations/events',authenticated,setup,async(req,res,next)=>{try{
+    const d=z.object({source:text,eventType:text,externalId:z.string().max(200).optional().nullable(),payload:z.record(z.unknown())}).parse(req.body);
+    const q=await pool.query('INSERT INTO integration_events(organization_id,source,event_type,external_id,payload) VALUES($1,$2,$3,$4,$5) RETURNING *',[req.user.organization_id,d.source,d.eventType,d.externalId??null,d.payload]);
+    await audit(pool,req.user,'lims_integration_event_received','integration_events',q.rows[0].id,{source:d.source,eventType:d.eventType,externalId:d.externalId??null});res.status(201).json(q.rows[0])
+  }catch(e){next(e)}});
+  app.patch('/api/lims/integrations/events/:id/status',authenticated,setup,async(req,res,next)=>{try{
+    const d=z.object({status:z.enum(['RECEIVED','PROCESSING','PROCESSED','FAILED']),errorMessage:z.string().max(1000).optional().nullable()}).parse(req.body);
+    const q=await pool.query(`UPDATE integration_events SET status=$1,error_message=$2,processed_at=CASE WHEN $1 IN ('PROCESSED','FAILED') THEN now() ELSE processed_at END WHERE organization_id=$3 AND id=$4 RETURNING *`,[d.status,d.errorMessage??null,req.user.organization_id,req.params.id]);if(!q.rowCount)return res.status(404).json({error:'Integration event not found'});
+    await audit(pool,req.user,'lims_integration_event_status','integration_events',req.params.id,{status:d.status});res.json(q.rows[0])
+  }catch(e){next(e)}});
+
 }
