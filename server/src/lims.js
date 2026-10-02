@@ -302,6 +302,13 @@ export function registerLimsRoutes({app,pool,auth,audit}){
       await c.query("UPDATE sample_tests SET status='RESULT_ENTERED',result_entered_at=now(),updated_at=now() WHERE id=$1",[req.params.id]);
       await c.query("UPDATE samples SET status='IN_ANALYSIS',updated_at=now() WHERE id=$1 AND organization_id=$2 AND status IN ('REGISTERED','RECEIVED')",[st.sample_id,req.user.organization_id]);
       await audit(c,req.user,existing.rowCount?'lims_result_update':'lims_result_enter','results',r.rows[0].id,{sampleTestId:req.params.id,resultFlag:flag,unit:r.rows[0].unit});
+      if(flag==='FAIL'){
+        const openOos=await c.query("SELECT id FROM quality_events WHERE organization_id=$1 AND result_id=$2 AND event_type='OOS' AND status<>'CLOSED' LIMIT 1",[req.user.organization_id,r.rows[0].id]);
+        if(!openOos.rowCount){
+          const qe=await c.query("INSERT INTO quality_events(organization_id,sample_test_id,result_id,event_type,trigger_source,description,detected_by,metadata) VALUES($1,$2,$3,'OOS','RESULT_SPECIFICATION','Result is outside the configured specification limits', $4, $5) RETURNING id",[req.user.organization_id,req.params.id,r.rows[0].id,req.user.id,{resultFlag:flag,rawValue:r.rows[0].raw_value,unit:r.rows[0].unit}]);
+          await audit(c,req.user,'lims_quality_event_auto_oos','quality_events',qe.rows[0].id,{resultId:r.rows[0].id,sampleTestId:req.params.id,triggerSource:'RESULT_SPECIFICATION'});
+        }
+      }
       await c.query('COMMIT');committed=true;res.status(existing.rowCount?200:201).json(r.rows[0]);
     }catch(e){await c.query('ROLLBACK').catch(()=>{});next(e)}finally{if(!committed)await c.query('ROLLBACK').catch(()=>{});c.release()}
   });
