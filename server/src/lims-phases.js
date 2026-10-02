@@ -186,6 +186,13 @@ export function registerLimsPhaseRoutes({app,pool,audit}){
     await audit(pool,req.user,'lims_calculation_create','calculations',q.rows[0].id,{sampleTestId:d.sampleTestId,formulaCode:d.formulaCode,formulaVersion:d.formulaVersion});res.status(201).json(q.rows[0])
   }catch(e){next(e)}});
 
+  app.get('/api/lims/instruments/:id/files',authenticated,readOnly,async(req,res,next)=>{try{const q=await pool.query('SELECT * FROM instrument_files WHERE organization_id=$1 AND instrument_id=$2 ORDER BY imported_at DESC LIMIT 500',[req.user.organization_id,req.params.id]);res.json(q.rows)}catch(e){next(e)}});
+  app.post('/api/lims/instruments/:id/files',authenticated,write,async(req,res,next)=>{try{
+    const d=z.object({fileName:text,mime:z.string().max(150).optional().nullable(),size:z.number().int().nonnegative().max(50*1024*1024).optional().nullable(),sha256:z.string().regex(/^[a-fA-F0-9]{64}$/).optional().nullable(),storedName:z.string().max(500).optional().nullable(),status:z.enum(['RECEIVED','PROCESSED','REJECTED']).optional(),errorMessage:z.string().max(1000).optional().nullable()}).parse(req.body);
+    const i=await pool.query('SELECT id FROM instruments WHERE organization_id=$1 AND id=$2',[req.user.organization_id,req.params.id]);if(!i.rowCount)return res.status(404).json({error:'Instrument not found'});
+    const q=await pool.query('INSERT INTO instrument_files(organization_id,instrument_id,file_name,mime,size,sha256,stored_name,imported_by,status,error_message) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *',[req.user.organization_id,req.params.id,d.fileName,d.mime??null,d.size??null,d.sha256??null,d.storedName??null,req.user.id,d.status??'RECEIVED',d.errorMessage??null]);
+    await audit(pool,req.user,'lims_instrument_file_register','instrument_files',q.rows[0].id,d);res.status(201).json(q.rows[0])
+  }catch(e){next(e)}});
   app.get('/api/lims/instruments/:id/readiness',authenticated,readOnly,async(req,res,next)=>{try{
     const i=await pool.query('SELECT id,asset_no,name,status,calibration_due_at FROM instruments WHERE organization_id=$1 AND id=$2',[req.user.organization_id,req.params.id]);if(!i.rowCount)return res.status(404).json({error:'Instrument not found'});
     const x=i.rows[0], c=await pool.query("SELECT status,performed_at,due_at FROM calibration_records WHERE organization_id=$1 AND instrument_id=$2 ORDER BY performed_at DESC LIMIT 1",[req.user.organization_id,x.id]), q=await pool.query("SELECT status,performed_at,due_at FROM instrument_qualifications WHERE organization_id=$1 AND instrument_id=$2 ORDER BY performed_at DESC LIMIT 1",[req.user.organization_id,x.id]);
