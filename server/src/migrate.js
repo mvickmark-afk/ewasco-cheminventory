@@ -17,6 +17,8 @@ try{
   await pool.query("INSERT INTO records(id,organization_id,entity,data) SELECT 'SETTINGS-BASELINE',o.id,'settings',jsonb_build_object('id','SETTINGS-BASELINE','systemName','EWASCO Chemical Inventory','applicationVersion','v2','organizationName',o.name,'baselineInitialized',true) FROM organizations o ON CONFLICT(organization_id,entity,id) DO NOTHING");
   await pool.query("INSERT INTO schema_migrations(version) VALUES('003-baseline-settings') ON CONFLICT DO NOTHING");
   await pool.query("INSERT INTO schema_migrations(version) VALUES('004-lims-security-core') ON CONFLICT DO NOTHING");
+  await pool.query("UPDATE records SET data=jsonb_set(jsonb_set(data,'{systemName}',to_jsonb('EWASCO LIMS'::text)),'{applicationVersion}',to_jsonb('LIMS-1.0'::text)) WHERE entity='settings' AND id='SETTINGS-BASELINE' AND data->>'systemName'='EWASCO Chemical Inventory'");
+  await pool.query("INSERT INTO schema_migrations(version) VALUES('005-ewasco-lims-product-baseline') ON CONFLICT DO NOTHING");
   await pool.query('COMMIT');
   console.log(JSON.stringify({event:'migration_verified',tables:requiredTables,lims:true}));
 }catch(e){await pool.query('ROLLBACK').catch(()=>{});throw e}finally{await pool.end()}
