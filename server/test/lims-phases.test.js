@@ -62,3 +62,18 @@ test('Analytical result failure automatically creates an OOS quality event',()=>
   assert.match(routes,/event_type='OOS'/);
   assert.match(routes,/lims_quality_event_auto_oos/);
 });
+
+test('Phase 3 trend and OOT controls are wired',()=>{
+  const routes=fs.readFileSync(new URL('../src/lims-phases.js',import.meta.url),'utf8');
+  assert.match(routes,/trend-rules/);
+  assert.match(routes,/\/api\/lims\/trends\/\:sampleTestId/);
+  assert.match(routes,/TREND_CONTROL_CHART/);
+  assert.match(routes,/OOT_ACTION/);
+  assert.match(routes,/Insufficient historical observations/);
+});
+test('Trend rules have migration tracking',()=>{
+  const migration=fs.readFileSync(new URL('../src/migrate.js',import.meta.url),'utf8');
+  const sql=fs.readFileSync(new URL('../sql/schema.sql',import.meta.url),'utf8');
+  assert.match(migration,/008-ewasco-lims-phase3-trend-rules/);
+  assert.match(sql,/CREATE TABLE IF NOT EXISTS trend_rules/);
+});
