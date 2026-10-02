@@ -125,3 +125,14 @@ test('Phase 5 QMS controls are wired',()=>{
   const migration=fs.readFileSync(new URL('../src/migrate.js',import.meta.url),'utf8');
   assert.match(migration,/010-ewasco-lims-phase5-qms-foundation/);
 });
+
+test('Phase 5 QMS lifecycle and training controls are wired',()=>{
+  const routes=fs.readFileSync(new URL('../src/lims-phases.js',import.meta.url),'utf8');
+  assert.match(routes,/capa\\/\\:id\\/status/);
+  assert.match(routes,/verifiedBy is required to close CAPA/);
+  assert.match(routes,/change-controls\\/\\:id\\/status/);
+  assert.match(routes,/Impact assessment is required before implementation/);
+  assert.match(routes,/qms\\/dashboard/);
+  assert.match(routes,/training\\/due/);
+  assert.match(routes,/training\\/\\:id\\/status/);
+});
