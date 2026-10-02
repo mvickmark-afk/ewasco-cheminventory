@@ -411,6 +411,38 @@ CREATE TABLE IF NOT EXISTS quality_events(
 );
 CREATE INDEX IF NOT EXISTS quality_events_org_status_idx ON quality_events(organization_id,status,detected_at DESC);
 
+CREATE TABLE IF NOT EXISTS instrument_maintenance(
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  instrument_id uuid NOT NULL REFERENCES instruments(id) ON DELETE CASCADE,
+  maintenance_type text NOT NULL,
+  scheduled_at timestamptz,
+  performed_at timestamptz,
+  status text NOT NULL DEFAULT 'PLANNED' CHECK(status IN ('PLANNED','IN_PROGRESS','COMPLETED','CANCELLED')),
+  performed_by uuid REFERENCES users(id) ON DELETE SET NULL,
+  vendor text,
+  work_reference text,
+  notes text,
+  created_by uuid REFERENCES users(id) ON DELETE SET NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS instrument_qualifications(
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  instrument_id uuid NOT NULL REFERENCES instruments(id) ON DELETE CASCADE,
+  qualification_type text NOT NULL CHECK(qualification_type IN ('IQ','OQ','PQ','REQUALIFICATION')),
+  performed_at timestamptz NOT NULL,
+  due_at timestamptz,
+  status text NOT NULL CHECK(status IN ('PASS','FAIL','EXPIRED')),
+  protocol_reference text,
+  certificate_file text,
+  performed_by uuid REFERENCES users(id) ON DELETE SET NULL,
+  notes text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS instrument_maintenance_due_idx ON instrument_maintenance(organization_id,instrument_id,status,scheduled_at);
+CREATE INDEX IF NOT EXISTS instrument_qualification_due_idx ON instrument_qualifications(organization_id,instrument_id,status,due_at);
+
 CREATE TABLE IF NOT EXISTS trend_rules(
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
