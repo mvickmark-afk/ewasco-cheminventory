@@ -3,9 +3,10 @@ import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 
 const root=process.cwd();
-const runtimeFiles=[
+const requiredRuntimeFiles=[
   'src/server.js',
   'src/lims.js',
+  'src/lims-phases.js',
   'src/permissions.js',
   'src/migrate.js',
   'src/seed-admin.js',
@@ -17,9 +18,31 @@ const runtimeFiles=[
 
 const fail=msg=>{throw new Error(msg)};
 
+// A hardcoded list silently skips any file added later, so enumerate the tree
+// as well: every module that can be loaded must parse.
+const collectJs=(dir,out=[])=>{
+  for(const entry of fs.readdirSync(path.join(root,dir),{withFileTypes:true})){
+    const rel=path.join(dir,entry.name);
+    if(entry.isDirectory())collectJs(rel,out);
+    else if(/\.(js|mjs)$/.test(entry.name))out.push(rel);
+  }
+  return out;
+};
+
+const runtimeFiles=[...new Set([
+  ...requiredRuntimeFiles,
+  ...collectJs('src'),
+  ...collectJs('public'),
+  ...collectJs('test'),
+  ...collectJs('scripts')
+])];
+
+for(const rel of requiredRuntimeFiles){
+  if(!fs.existsSync(path.join(root,rel)))fail(`Required runtime file missing: ${rel}`);
+}
+
 for(const rel of runtimeFiles){
   const file=path.join(root,rel);
-  if(!fs.existsSync(file))fail(`Required runtime file missing: ${rel}`);
   const result=spawnSync(process.execPath,['--check',file],{encoding:'utf8'});
   if(result.status!==0){
     fail(`JavaScript syntax check failed for ${rel}: ${(result.stderr||result.stdout||'').trim()}`);
