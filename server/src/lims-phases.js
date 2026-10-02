@@ -71,9 +71,25 @@ export function registerLimsPhaseRoutes({app,pool,audit}){
     if(!q.rowCount)return res.status(404).json({error:'Chain of custody record not found'});
     await audit(pool,req.user,'lims_custody_status','chain_of_custody',req.params.id,{status:d.status});res.json(q.rows[0])
   }catch(e){next(e)}});
-  app.post('/api/lims/batches',authenticated,setup,async(req,res,next)=>{try{const d=z.object({batchNo:text,batchType:z.enum(['ANALYTICAL','PREPARATION','QC','CALIBRATION']),methodId:uuid.optional().nullable(),metadata:z.record(z.unknown()).optional()}).parse(req.body);const q=await pool.query('INSERT INTO analytical_batches(organization_id,batch_no,batch_type,method_id,created_by,metadata) VALUES($1,$2,$3,$4,$5,$6) RETURNING *',[req.user.organization_id,d.batchNo,d.batchType,d.methodId??null,req.user.id,d.metadata??{}]);await audit(pool,req.user,'lims_batch_create','analytical_batches',q.rows[0].id,d);res.status(201).json(q.rows[0])}catch(e){next(e)}});
+  app.post('/api/lims/batches',authenticated,setup,async(req,res,next)=>{try{
+    const d=z.object({batchNo:text,batchType:z.enum(['ANALYTICAL','PREPARATION','QC','CALIBRATION']),methodId:uuid.optional().nullable(),requiredQcTypes:z.array(z.enum(['BLANK','DUPLICATE','SPIKE','LCS','CALIBRATION_CHECK','REFERENCE_MATERIAL'])).max(6).optional(),metadata:z.record(z.unknown()).optional()}).parse(req.body);
+    if(d.methodId){const m=await pool.query('SELECT id FROM test_methods WHERE organization_id=$1 AND id=$2 AND active=true',[req.user.organization_id,d.methodId]);if(!m.rowCount)return res.status(422).json({error:'Batch method not found or inactive'});}
+    const metadata={...(d.metadata??{}),...(d.requiredQcTypes?{requiredQcTypes:[...new Set(d.requiredQcTypes)]}:{})};
+    const q=await pool.query('INSERT INTO analytical_batches(organization_id,batch_no,batch_type,method_id,created_by,metadata) VALUES($1,$2,$3,$4,$5,$6) RETURNING *',[req.user.organization_id,d.batchNo,d.batchType,d.methodId??null,req.user.id,metadata]);await audit(pool,req.user,'lims_batch_create','analytical_batches',q.rows[0].id,{...d,metadata});res.status(201).json(q.rows[0])}catch(e){next(e)}});
 
-  app.post('/api/lims/batches/:id/members',authenticated,write,async(req,res,next)=>{try{const d=z.object({sampleTestId:uuid}).parse(req.body);const check=await pool.query('SELECT id FROM analytical_batches WHERE organization_id=$1 AND id=$2',[req.user.organization_id,req.params.id]);if(!check.rowCount)return res.status(404).json({error:'Batch not found'});const st=await pool.query('SELECT id FROM sample_tests WHERE organization_id=$1 AND id=$2',[req.user.organization_id,d.sampleTestId]);if(!st.rowCount)return res.status(404).json({error:'Sample test not found'});const q=await pool.query('INSERT INTO batch_members(organization_id,batch_id,sample_test_id) VALUES($1,$2,$3) RETURNING *',[req.user.organization_id,req.params.id,d.sampleTestId]);await audit(pool,req.user,'lims_batch_member_add','batch_members',q.rows[0].id,d);res.status(201).json(q.rows[0])}catch(e){next(e)}});
+  app.get('/api/lims/batches/:id/members',authenticated,readOnly,async(req,res,next)=>{try{
+    const q=await pool.query(`SELECT bm.id,bm.batch_id,bm.sample_test_id,bm.created_at,st.status test_status,s.sample_no,s.sample_type,tm.id method_id,tm.code method_code,tm.name method_name,tm.analyte,r.id result_id,r.result_flag,r.result_status
+      FROM batch_members bm JOIN sample_tests st ON st.organization_id=bm.organization_id AND st.id=bm.sample_test_id JOIN samples s ON s.organization_id=st.organization_id AND s.id=st.sample_id JOIN test_methods tm ON tm.id=st.method_id LEFT JOIN results r ON r.sample_test_id=st.id
+      WHERE bm.organization_id=$1 AND bm.batch_id=$2 ORDER BY bm.created_at`,[req.user.organization_id,req.params.id]);res.json(q.rows)
+  }catch(e){next(e)}});
+  app.post('/api/lims/batches/:id/members',authenticated,write,async(req,res,next)=>{try{
+    const d=z.object({sampleTestId:uuid}).parse(req.body);
+    const check=await pool.query('SELECT id,method_id,status FROM analytical_batches WHERE organization_id=$1 AND id=$2',[req.user.organization_id,req.params.id]);if(!check.rowCount)return res.status(404).json({error:'Batch not found'});
+    if(['COMPLETED','ACCEPTED','REJECTED'].includes(check.rows[0].status))return res.status(409).json({error:'Batch membership is locked after completion'});
+    const st=await pool.query('SELECT id,method_id,status FROM sample_tests WHERE organization_id=$1 AND id=$2',[req.user.organization_id,d.sampleTestId]);if(!st.rowCount)return res.status(404).json({error:'Sample test not found'});
+    if(check.rows[0].method_id&&check.rows[0].method_id!==st.rows[0].method_id)return res.status(422).json({error:'Sample test method does not match the batch method'});
+    const q=await pool.query('INSERT INTO batch_members(organization_id,batch_id,sample_test_id) VALUES($1,$2,$3) RETURNING *',[req.user.organization_id,req.params.id,d.sampleTestId]);await audit(pool,req.user,'lims_batch_member_add','batch_members',q.rows[0].id,d);res.status(201).json(q.rows[0])
+  }catch(e){next(e)}});
 
   app.patch('/api/lims/batches/:id/status',authenticated,write,async(req,res,next)=>{try{
     const d=z.object({status:z.enum(['OPEN','IN_PROGRESS','COMPLETED','ACCEPTED','REJECTED'])}).parse(req.body);
@@ -85,8 +101,11 @@ export function registerLimsPhaseRoutes({app,pool,audit}){
       const blockers=await pool.query(`SELECT 'QC_FAIL' AS type,q.id,q.qc_type,q.flag FROM qc_results q WHERE q.organization_id=$1 AND q.batch_id=$2 AND q.flag='FAIL'
         UNION ALL
         SELECT 'HOLD_TIME_EXPIRED' AS type,st.id,st.status,NULL FROM batch_members bm JOIN sample_tests st ON st.organization_id=bm.organization_id AND st.id=bm.sample_test_id
-        JOIN samples s ON s.organization_id=st.organization_id AND s.id=st.sample_id JOIN hold_time_rules hr ON hr.organization_id=st.organization_id AND hr.method_id=st.method_id AND hr.active=true
-        WHERE bm.organization_id=$1 AND bm.batch_id=$2 AND s.collected_at IS NOT NULL AND now()>s.collected_at+(hr.hours*interval '1 hour')`,[req.user.organization_id,req.params.id]);
+        JOIN samples s ON s.organization_id=st.organization_id AND s.id=s.sample_id JOIN hold_time_rules hr ON hr.organization_id=st.organization_id AND hr.method_id=st.method_id AND hr.active=true
+        WHERE bm.organization_id=$1 AND bm.batch_id=$2 AND s.collected_at IS NOT NULL AND now()>s.collected_at+(hr.hours*interval '1 hour')
+        UNION ALL
+        SELECT 'QC_REQUIRED_MISSING' AS type,NULL,req.qc_type,NULL FROM analytical_batches b CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(b.metadata->'requiredQcTypes','[]'::jsonb)) req(qc_type)
+        WHERE b.organization_id=$1 AND b.id=$2 AND NOT EXISTS (SELECT 1 FROM qc_results q WHERE q.organization_id=b.organization_id AND q.batch_id=b.id AND q.qc_type=req.qc_type AND q.flag='PASS')`,[req.user.organization_id,req.params.id]);
       if(blockers.rowCount)return res.status(409).json({error:'Batch cannot be accepted while quality gates are failing',blockers:blockers.rows});
     }
     const fields={OPEN:'started_at',IN_PROGRESS:'started_at',COMPLETED:'completed_at',ACCEPTED:'accepted_at',REJECTED:'completed_at'};
