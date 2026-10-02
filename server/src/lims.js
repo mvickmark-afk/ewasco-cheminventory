@@ -199,10 +199,10 @@ export function registerLimsRoutes({app,pool,auth,audit}){
   });
 
   app.post('/api/lims/samples',auth,sampleWrite,async(req,res,next)=>{
-    const c=await pool.connect();let committed=false;
+    const c=await pool.connect();let inTransaction=false;let committed=false;
     try{
       const d=sampleSchema.parse(req.body);
-      await c.query('BEGIN');
+      await c.query('BEGIN');inTransaction=true;
       if(d.samplingPointId){
         const p=await c.query("SELECT id FROM sampling_points WHERE organization_id=$1 AND id=$2 AND active=true",[req.user.organization_id,d.samplingPointId]);
         if(!p.rowCount)throw Error('Sampling point not found or inactive');
@@ -223,17 +223,17 @@ export function registerLimsRoutes({app,pool,auth,audit}){
         await c.query("INSERT INTO sample_tests(organization_id,sample_id,method_id,specification_id,status,priority,assigned_to,due_at) VALUES($1,$2,$3,$4,'PLANNED',$5,$6,$7)",[req.user.organization_id,sample.rows[0].id,t.methodId,t.specificationId??null,t.priority??100,t.assignedTo??null,t.dueAt??null]);
       }
       await audit(c,req.user,'lims_register','samples',sample.rows[0].id,{sampleNo:number.rows[0].sample_no,sampleType:d.sampleType,testCount:d.tests.length});
-      await c.query('COMMIT');
+      await c.query('COMMIT');committed=true;inTransaction=false;
       const full=await pool.query("SELECT id,sample_no,status FROM samples WHERE id=$1 AND organization_id=$2",[sample.rows[0].id,req.user.organization_id]);
       res.status(201).json(full.rows[0]);
-    }catch(e){await c.query('ROLLBACK').catch(()=>{});next(e)}finally{if(!committed)await c.query('ROLLBACK').catch(()=>{});c.release()}
+    }catch(e){if(inTransaction&&!committed)await c.query('ROLLBACK').catch(()=>{});next(e)}finally{if(inTransaction&&!committed)await c.query('ROLLBACK').catch(()=>{});c.release()}
   });
 
   app.patch('/api/lims/samples/:id/status',auth,sampleWrite,async(req,res,next)=>{
-    const c=await pool.connect();let committed=false;
+    const c=await pool.connect();let inTransaction=false;let committed=false;
     try{
       const body=z.object({status:z.enum(['REGISTERED','RECEIVED','IN_ANALYSIS','PENDING_REVIEW','APPROVED','REPORTED','ARCHIVED','CANCELLED'])}).parse(req.body);
-      await c.query('BEGIN');
+      await c.query('BEGIN');inTransaction=true;
       const q=await c.query("SELECT * FROM samples WHERE organization_id=$1 AND id=$2 FOR UPDATE",[req.user.organization_id,req.params.id]);
       if(!q.rowCount)return res.status(404).json({error:'Sample not found'});
       const current=q.rows[0].status;
@@ -245,9 +245,9 @@ export function registerLimsRoutes({app,pool,auth,audit}){
       }
       const x=await c.query("UPDATE samples SET status=$1,received_at=CASE WHEN $1='RECEIVED' AND received_at IS NULL THEN now() ELSE received_at END,received_by=CASE WHEN $1='RECEIVED' THEN $2 ELSE received_by END,updated_at=now() WHERE id=$3 AND organization_id=$4 RETURNING *",[body.status,req.user.id,req.params.id,req.user.organization_id]);
       await audit(c,req.user,'lims_status', 'samples',req.params.id,{from:current,to:body.status});
-      await c.query('COMMIT');
+      await c.query('COMMIT');committed=true;inTransaction=false;
       res.json(x.rows[0]);
-    }catch(e){await c.query('ROLLBACK').catch(()=>{});next(e)}finally{if(!committed)await c.query('ROLLBACK').catch(()=>{});c.release()}
+    }catch(e){if(inTransaction&&!committed)await c.query('ROLLBACK').catch(()=>{});next(e)}finally{if(inTransaction&&!committed)await c.query('ROLLBACK').catch(()=>{});c.release()}
   });
 
   app.get('/api/lims/worklist',auth,read,async(req,res,next)=>{
