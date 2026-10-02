@@ -5,6 +5,18 @@ import {feature} from './permissions.js';
 
 const text=z.string().trim().min(1).max(300);
 const uuid=z.string().uuid();
+const calibrationPoint=z.object({
+  point:z.string().trim().min(1).max(80),
+  nominal:z.number().finite(),
+  measured:z.number().finite(),
+  unit:z.string().trim().max(40).optional().nullable(),
+  tolerance:z.number().finite().nonnegative().optional().nullable(),
+  error:z.number().finite().optional().nullable(),
+  standardReference:z.string().trim().max(300).optional().nullable()
+}).superRefine((p,ctx)=>{
+  const error=p.error??(p.measured-p.nominal);
+  if(p.tolerance!=null&&Math.abs(error)>p.tolerance)ctx.addIssue({code:z.ZodIssueCode.custom,path:['error'],message:'Measured value exceeds the declared tolerance'});
+});
 const readOnly=(req,res,next)=>feature(req.user.role,'limsRead')?next():res.status(403).json({error:'LIMS access not permitted'});
 const setup=(req,res,next)=>feature(req.user.role,'limsSetup')?next():res.status(403).json({error:'LIMS configuration not permitted'});
 const write=(req,res,next)=>feature(req.user.role,'limsResultEntry')?next():res.status(403).json({error:'LIMS operation not permitted'});
@@ -224,8 +236,8 @@ export function registerLimsPhaseRoutes({app,pool,audit}){
   }catch(e){next(e)}});
   app.post('/api/lims/instruments',authenticated,setup,async(req,res,next)=>{try{const d=z.object({assetNo:text,name:text,manufacturer:z.string().max(200).optional().nullable(),model:z.string().max(200).optional().nullable(),serialNo:z.string().max(200).optional().nullable(),location:z.string().max(300).optional().nullable(),calibrationDueAt:z.string().datetime({offset:true}).optional().nullable(),metadata:z.record(z.unknown()).optional()}).parse(req.body);const q=await pool.query('INSERT INTO instruments(organization_id,asset_no,name,manufacturer,model,serial_no,location,calibration_due_at,metadata,created_by) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *',[req.user.organization_id,d.assetNo,d.name,d.manufacturer??null,d.model??null,d.serialNo??null,d.location??null,d.calibrationDueAt??null,d.metadata??{},req.user.id]);await audit(pool,req.user,'lims_instrument_create','instruments',q.rows[0].id,d);res.status(201).json(q.rows[0])}catch(e){next(e)}});
 
-  app.post('/api/lims/calibrations',authenticated,setup,async(req,res,next)=>{try{const d=z.object({instrumentId:uuid,performedAt:z.string().datetime({offset:true}),dueAt:z.string().datetime({offset:true}).optional().nullable(),status:z.enum(['PASS','FAIL','OUT_OF_TOLERANCE']),standardReference:z.string().max(300).optional().nullable(),points:z.array(z.unknown()).optional(),certificateFile:z.string().max(500).optional().nullable(),notes:z.string().max(2000).optional().nullable()}).parse(req.body);
-    const instrument=await pool.query('SELECT id,status FROM instruments WHERE organization_id=$1 AND id=$2 FOR UPDATE',[req.user.organization_id,d.instrumentId]);if(!instrument.rowCount)return res.status(404).json({error:'Instrument not found'});if(instrument.rows[0].status==='RETIRED')return res.status(409).json({error:'Retired instrument cannot be calibrated'});
+  app.post('/api/lims/calibrations',authenticated,setup,async(req,res,next)=>{try{const d=z.object({instrumentId:uuid,performedAt:z.string().datetime({offset:true}),dueAt:z.string().datetime({offset:true}).optional().nullable(),status:z.enum(['PASS','FAIL','OUT_OF_TOLERANCE']),standardReference:z.string().max(300).optional().nullable(),points:z.array(calibrationPoint).max(100).optional(),certificateFile:z.string().max(500).optional().nullable(),notes:z.string().max(2000).optional().nullable()}).parse(req.body);
+    const instrument=await pool.query('SELECT id,status FROM instruments WHERE organization_id=$1 AND id=$2',[req.user.organization_id,d.instrumentId]);if(!instrument.rowCount)return res.status(404).json({error:'Instrument not found'});if(instrument.rows[0].status==='RETIRED')return res.status(409).json({error:'Retired instrument cannot be calibrated'});
     const q=await pool.query('INSERT INTO calibration_records(organization_id,instrument_id,performed_at,due_at,status,standard_reference,points,certificate_file,performed_by,notes) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *',[req.user.organization_id,d.instrumentId,d.performedAt,d.dueAt??null,d.status,d.standardReference??null,d.points??[],d.certificateFile??null,req.user.id,d.notes??null]);
     if(d.status==='PASS')await pool.query("UPDATE instruments SET status='ACTIVE',calibration_due_at=COALESCE($1,calibration_due_at),updated_at=now() WHERE organization_id=$2 AND id=$3",[d.dueAt??null,req.user.organization_id,d.instrumentId]);else await pool.query("UPDATE instruments SET status='OUT_OF_SERVICE',updated_at=now() WHERE organization_id=$1 AND id=$2 AND status<>'RETIRED'",[req.user.organization_id,d.instrumentId]);
     await audit(pool,req.user,'lims_calibration_create','calibration_records',q.rows[0].id,d);res.status(201).json(q.rows[0])}catch(e){next(e)}});
