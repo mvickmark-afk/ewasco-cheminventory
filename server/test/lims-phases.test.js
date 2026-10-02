@@ -17,3 +17,19 @@ test('Phase status exposes all six delivery phases',()=>{
   const routes=fs.readFileSync(new URL('../src/lims-phases.js',import.meta.url),'utf8');
   for(let i=1;i<=6;i++)assert.ok(routes.includes('phase'+i+':'),'phase '+i+' missing');
 });
+
+
+test('Phase 3 QC evaluation and acceptance gates are wired',()=>{
+  const routes=fs.readFileSync(new URL('../src/lims-phases.js',import.meta.url),'utf8');
+  assert.match(routes,/export function evaluateQcFlag/);
+  assert.match(routes,/Lower limit cannot exceed upper limit/);
+  assert.match(routes,/flag='FAIL'/);
+  assert.match(routes,/Batch cannot be accepted while quality gates are failing/);
+  assert.match(routes,/HOLD_TIME_EXPIRED/);
+});
+
+test('Batch lifecycle has controlled transition rules',()=>{
+  const routes=fs.readFileSync(new URL('../src/lims-phases.js',import.meta.url),'utf8');
+  assert.match(routes,/const transitions=/);
+  assert.match(routes,/Invalid batch status transition/);
+});
