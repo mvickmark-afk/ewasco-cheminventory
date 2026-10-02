@@ -5,7 +5,7 @@ import pg from 'pg';
 const required=n=>{if(!process.env[n])throw Error(`${n} is required`);return process.env[n]};
 const pool=new pg.Pool({connectionString:required('DATABASE_URL')});
 const sql=await fs.readFile(new URL('../sql/schema.sql',import.meta.url),'utf8');
-const requiredTables=['schema_migrations','organizations','users','sessions','records','sds_versions','audit_log','sampling_points','test_methods','specifications','samples','sample_tests','results','sampling_schedules','sample_containers','chain_of_custody','custody_events','analytical_batches','batch_members','qc_results','hold_time_rules','calculations','instruments','instrument_interfaces','instrument_files','calibration_records','controlled_documents','document_versions','training_records','deviations','capa_actions','audit_plans','change_controls','reports','notifications','integration_events'];
+const requiredTables=['schema_migrations','organizations','users','sessions','records','sds_versions','audit_log','sampling_points','test_methods','specifications','samples','sample_tests','results','sampling_schedules','sample_containers','chain_of_custody','custody_events','analytical_batches','batch_members','qc_results','hold_time_rules','calculations','instruments','instrument_interfaces','instrument_files','calibration_records','controlled_documents','document_versions','training_records','deviations','capa_actions','audit_plans','change_controls','reports','notifications','integration_events','quality_events'];
 try{
   await pool.query('BEGIN');
   await pool.query(sql);
@@ -20,6 +20,7 @@ try{
   await pool.query("UPDATE records SET data=jsonb_set(jsonb_set(data,'{systemName}',to_jsonb('EWASCO LIMS'::text)),'{applicationVersion}',to_jsonb('LIMS-1.0'::text)) WHERE entity='settings' AND id='SETTINGS-BASELINE' AND data->>'systemName'='EWASCO Chemical Inventory'");
   await pool.query("INSERT INTO schema_migrations(version) VALUES('005-ewasco-lims-product-baseline') ON CONFLICT DO NOTHING");
   await pool.query("INSERT INTO schema_migrations(version) VALUES('006-ewasco-lims-phases-1-6-foundation') ON CONFLICT DO NOTHING");
+  await pool.query("INSERT INTO schema_migrations(version) VALUES('007-ewasco-lims-phase3-quality-events') ON CONFLICT DO NOTHING");
   await pool.query('COMMIT');
   console.log(JSON.stringify({event:'migration_verified',tables:requiredTables,lims:true}));
 }catch(e){await pool.query('ROLLBACK').catch(()=>{});throw e}finally{await pool.end()}
