@@ -92,5 +92,11 @@ test('Phase 4 maintenance qualification and readiness controls are wired',()=>{
   assert.match(routes,/\/api\/lims\/qualifications/);
   assert.match(routes,/\/api\/lims\/instruments\/\:id\/readiness/);
   assert.match(routes,/Instrument not found/);
-  assert.match(routes,/INSTRUMENT/);
+  assert.match(routes,/instrument_files/);
+});
+
+test('Phase 4 instrument file traceability is wired',()=>{
+  const routes=fs.readFileSync(new URL('../src/lims-phases.js',import.meta.url),'utf8');
+  assert.match(routes,/\/api\/lims\/instruments\/\:id\/files/);
+  assert.match(routes,/lims_instrument_file_register/);
 });
