@@ -115,3 +115,12 @@ test('Analytical results enforce referenced instrument readiness',()=>{
   assert.match(routes,/Referenced instrument calibration is overdue/);
   assert.match(routes,/Referenced instrument qualification is not current/);
 });
+
+test('Phase 5 CAPA, change-control and QMS dashboard controls are wired',()=>{
+  const routes=fs.readFileSync(new URL('../src/lims-phases.js',import.meta.url),'utf8');
+  assert.match(routes,/capa\/\:id\/status/);
+  assert.match(routes,/verifiedBy is required to close CAPA/);
+  assert.match(routes,/change-controls\/\:id\/status/);
+  assert.match(routes,/Impact assessment is required before implementation/);
+  assert.match(routes,/qms\/dashboard/);
+});
