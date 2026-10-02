@@ -28,8 +28,10 @@ for(const rel of runtimeFiles){
 
 const index=fs.readFileSync(path.join(root,'public/index.html'),'utf8');
 if(!index.includes('src="/api-client.js'))fail('Production frontend must load /api-client.js');
+if(!index.includes('href="/favicon.svg"'))fail('Production frontend must load the application favicon');
 if(!index.includes('src="/validators.js'))fail('Production frontend must load /validators.js');
 if(!index.includes('src="/app.js'))fail('Production frontend must load /app.js');
+if(index.indexOf('src="/validators.js')>index.indexOf('src="/app.js'))fail('Validators must load before app.js');
 if(/<script>[ \t\r\n]*(?!src=)/i.test(index))fail('Production frontend contains an inline application script');
 
 const app=fs.readFileSync(path.join(root,'public/app.js'),'utf8');
