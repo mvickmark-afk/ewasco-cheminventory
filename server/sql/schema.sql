@@ -410,4 +410,19 @@ CREATE TABLE IF NOT EXISTS quality_events(
   metadata jsonb NOT NULL DEFAULT '{}'::jsonb CHECK(jsonb_typeof(metadata)='object')
 );
 CREATE INDEX IF NOT EXISTS quality_events_org_status_idx ON quality_events(organization_id,status,detected_at DESC);
+
+CREATE TABLE IF NOT EXISTS trend_rules(
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  method_id uuid NOT NULL REFERENCES test_methods(id) ON DELETE CASCADE,
+  min_observations integer NOT NULL DEFAULT 10 CHECK(min_observations>=3),
+  warning_sigma numeric NOT NULL DEFAULT 2 CHECK(warning_sigma>0),
+  action_sigma numeric NOT NULL DEFAULT 3 CHECK(action_sigma>=warning_sigma),
+  active boolean NOT NULL DEFAULT true,
+  source_reference text,
+  created_by uuid REFERENCES users(id) ON DELETE SET NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(organization_id,method_id)
+);
+CREATE INDEX IF NOT EXISTS trend_rules_org_active_idx ON trend_rules(organization_id,active);
 CREATE UNIQUE INDEX IF NOT EXISTS quality_events_open_result_type_uq ON quality_events(organization_id,result_id,event_type) WHERE status<>'CLOSED' AND result_id IS NOT NULL;
