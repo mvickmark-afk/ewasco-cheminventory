@@ -85,3 +85,12 @@ test('Phase 4 instrument and calibration controls are wired',()=>{
   assert.match(routes,/Retired instrument cannot be calibrated/);
   assert.match(routes,/status='OUT_OF_SERVICE'/);
 });
+
+test('Phase 4 maintenance qualification and readiness controls are wired',()=>{
+  const routes=fs.readFileSync(new URL('../src/lims-phases.js',import.meta.url),'utf8');
+  assert.match(routes,/\/api\/lims\/maintenance/);
+  assert.match(routes,/\/api\/lims\/qualifications/);
+  assert.match(routes,/\/api\/lims\/instruments\/\:id\/readiness/);
+  assert.match(routes,/Instrument not found/);
+  assert.match(routes,/INSTRUMENT/);
+});
