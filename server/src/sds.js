@@ -16,29 +16,30 @@ const idSchema=z.string().min(1).max(120).regex(/^[A-Za-z0-9._:-]+$/);
 const casPattern=/\b\d{2,7}-\d{2}-\d\b/g;
 const labelPatterns={
   sdsName:[
-    /^\s*(?:sds|msds)\s*(?:name|title)\s*[:\-]\s*(.*)$/i,
-    /^\s*safety\s+data\s+sheet\s+(?:name|title)\s*[:\-]\s*(.*)$/i,
-    /^\s*document\s+title\s*[:\-]\s*(.*)$/i,
-    /^\s*title\s*[:\-]\s*(.*)$/i
+    /^\s*(?:sds|msds)\s*(?:name|title)\s*(?:(?::|-)[ \t]*)?([^\r\n]*)$/i,
+    /^\s*safety\s+data\s+sheet\s+(?:name|title)\s*(?:(?::|-)[ \t]*)?([^\r\n]*)$/i,
+    /^\s*document\s+title\s*(?:(?::|-)[ \t]*)?([^\r\n]*)$/i,
+    /^\s*title\s*(?:(?::|-)[ \t]*)?([^\r\n]*)$/i
   ],
   manufacturer:[
-    /^\s*manufacturer\s*(?:\/\s*supplier)?\s*[:\-]\s*(.*)$/i,
-    /^\s*supplier\s*[:\-]\s*(.*)$/i,
-    /^\s*company\s+name\s*[:\-]\s*(.*)$/i
+    /^\s*manufacturer\s*(?:\/\s*supplier)?\s*(?:(?::|-)[ \t]*)?([^\r\n]*)$/i,
+    /^\s*supplier\s*(?:(?::|-)[ \t]*)?([^\r\n]*)$/i,
+    /^\s*company\s+name\s*(?:(?::|-)[ \t]*)?([^\r\n]*)$/i
   ],
   product:[
-    /^\s*product\s+identifier\s*[:\-]\s*(.*)$/i,
-    /^\s*product\s*(?:\/|or)\s*chemical\s*[:\-]\s*(.*)$/i,
-    /^\s*chemical\s+name\s*[:\-]\s*(.*)$/i,
-    /^\s*substance\s+name\s*[:\-]\s*(.*)$/i,
-    /^\s*trade\s+name\s*[:\-]\s*(.*)$/i
+    /^\s*product\s+identifier\s*(?:(?::|-)[ \t]*)?([^\r\n]*)$/i,
+    /^\s*product\s*(?:\/|or)\s*chemical\s*(?:(?::|-)[ \t]*)?([^\r\n]*)$/i,
+    /^\s*product\s+name\s*(?:(?::|-)[ \t]*)?([^\r\n]*)$/i,
+    /^\s*chemical\s+name\s*(?:(?::|-)[ \t]*)?([^\r\n]*)$/i,
+    /^\s*substance\s+name\s*(?:(?::|-)[ \t]*)?([^\r\n]*)$/i,
+    /^\s*trade\s+name\s*(?:(?::|-)[ \t]*)?([^\r\n]*)$/i
   ],
   cas:[
-    /^\s*(?:cas(?:\s+registry)?|cas\s*(?:no|number))\s*(?:\.?\s*[:\-])\s*(.*)$/i
+    /^\s*(?:cas(?:\s+registry)?|cas\s*(?:no|number))\s*(?:\.?\s*(?::|-)\s*)?(.*)$/i
   ],
   revisionDate:[
-    /^\s*date\s+of\s+last\s+revision\s*[:\-]\s*(.*)$/i,
-    /^\s*(?:revision\s+date|date\s+of\s+revision|date\s+of\s+issue|issue\s+date|revision)\s*[:\-]\s*(.*)$/i
+    /^\s*date\s+of\s+last\s+revision\s*(?:(?::|-)[ \t]*)?([^\r\n]*)$/i,
+    /^\s*(?:revision\s+date|date\s+of\s+revision|date\s+of\s+issue|issue\s+date|revision)\s*(?:(?::|-)[ \t]*)?([^\r\n]*)$/i
   ]
 };
 
@@ -139,6 +140,10 @@ export function registerSdsRoutes({app,pool,auth,upload,inspect,audit,dir}){
       const buffer=await fs.readFile(req.file.path);
       const extracted=await extractor.extractText({input:buffer,type:'buffer'});
       const metadata=extractSdsMetadata(extracted);
+      if(!metadata.name){
+        const fallbackName=metadata.product||path.basename(req.file.originalname,path.extname(req.file.originalname)).replace(/[_-]+/g,' ').trim();
+        if(fallbackName)metadata.name=fallbackName;
+      }
       await c.query('BEGIN');
       const existing=await c.query('SELECT data,version FROM records WHERE organization_id=$1 AND entity=\'sds\' AND id=$2 FOR UPDATE',[req.user.organization_id,sdsId]);
       const data={

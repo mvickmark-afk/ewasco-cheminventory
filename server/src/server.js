@@ -29,7 +29,22 @@ app.use('/api',(req,res,next)=>{res.set('Cache-Control','no-store');next()});
 const hash=x=>crypto.createHash('sha256').update(x).digest('hex'),token=()=>crypto.randomBytes(32).toString('hex'),sign=u=>jwt.sign({sub:u.id},secret,{issuer:'ewasco',audience:'ewasco-web',expiresIn:'8h'});const setCsrf=res=>{const t=token();res.cookie(csrfCookie,t,{sameSite:'strict',secure:process.env.COOKIE_SECURE==='true',maxAge:28800000});return t};
 function csrf(req,res,next){if(!['POST','PUT','PATCH','DELETE'].includes(req.method)||req.path==='/auth/login')return next();if(req.cookies[csrfCookie]!==req.get('X-CSRF-Token'))return res.status(403).json({error:'CSRF validation failed'});next()};async function auth(req,res,next){try{const t=req.cookies[cookie],c=jwt.verify(t,secret,{issuer:'ewasco',audience:'ewasco-web'}),q=await pool.query('SELECT u.id,u.organization_id,u.username,u.role FROM users u JOIN sessions s ON s.user_id=u.id WHERE u.id=$1 AND u.disabled=false AND s.token_hash=$2 AND s.expires_at>now()',[c.sub,hash(t)]);if(!q.rowCount)throw Error();req.user=q.rows[0];next()}catch{res.status(401).json({error:'Invalid or expired session'})}};
 const ent=(req,res,next)=>ENTITIES.includes(req.params.entity)?next():res.status(404).json({error:'Unknown entity'}),perm=a=>(req,res,next)=>can(req.user.role,a,req.params.entity)?next():res.status(403).json({error:'Forbidden'}),feat=n=>(req,res,next)=>feature(req.user.role,n)?next():res.status(403).json({error:'Forbidden'});async function audit(c,u,a,e,id,d){await c.query('INSERT INTO audit_log(organization_id,user_id,action,entity,record_id,data) VALUES($1,$2,$3,$4,$5,$6)',[u.organization_id,u.id,a,e,id||null,d||null])};const out=r=>({...r.data,id:r.id,_version:r.version,_updatedAt:r.updated_at});
-const signatures={pdf:{ext:['.pdf'],bytes:b=>b.subarray(0,5).toString()==='%PDF-'},png:{ext:['.png'],bytes:b=>b.subarray(0,8).equals(Buffer.from('89504e470d0a1a0a','hex'))},jpg:{ext:['.jpg','.jpeg'],bytes:b=>b[0]===0xff&&b[1]===0xd8&&b[2]===0xff},docx:{ext:['.docx'],bytes:b=>b.subarray(0,2).equals(Buffer.from('PK'))},xlsx:{ext:['.xlsx'],bytes:b=>b.subarray(0,2).equals(Buffer.from('PK'))}};async function inspect(file){const b=await fs.readFile(file.path),ext=path.extname(file.originalname).toLowerCase(),type=Object.entries(signatures).find(([,s])=>s.ext.includes(ext)&&s.bytes(b));if(!type){await fs.unlink(file.path).catch(()=>{});throw Error('Unsupported or invalid file signature')}return{mime:{pdf:'application/pdf',png:'image/png',jpg:'image/jpeg',docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}[type[0]],sha256:crypto.createHash('sha256').update(b).digest('hex')}}
+const allowedDocumentTypes={
+  '.pdf':{mime:'application/pdf'},
+  '.docx':{mime:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'},
+  '.xlsx':{mime:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}
+};
+async function inspect(file){
+  const b=await fs.readFile(file.path);
+  const ext=path.extname(file.originalname).toLowerCase();
+  const type=allowedDocumentTypes[ext];
+  if(!type){await fs.unlink(file.path).catch(()=>{});throw Object.assign(new Error('Only Word (.docx), PDF (.pdf), and Excel (.xlsx) SDS documents are accepted'),{statusCode:415})}
+  if(file.mimetype&&file.mimetype!=='application/octet-stream'&&file.mimetype!==type.mime){
+    const browserMimeAllowed=ext==='.pdf'&&file.mimetype==='application/x-pdf'||ext==='.docx'&&file.mimetype==='application/zip'||ext==='.xlsx'&&file.mimetype==='application/zip';
+    if(!browserMimeAllowed)file.mimetype=type.mime;
+  }
+  return{mime:type.mime,sha256:crypto.createHash('sha256').update(b).digest('hex')};
+}
 app.use('/api',csrf);app.get('/healthz',(_q,r)=>r.json({status:'ok'}));app.get('/readyz',async(_q,r)=>{try{await pool.query('SELECT 1');r.json({status:'ready'})}catch{r.status(503).json({status:'not-ready'})}});app.get('/api/auth/csrf',(_q,r)=>r.json({token:setCsrf(r)}));
 app.post('/api/auth/login',async(req,res,next)=>{try{
  const i=z.object({username:z.string().trim().toLowerCase().min(1).max(100),password:z.string().min(1).max(200)}).parse(req.body);

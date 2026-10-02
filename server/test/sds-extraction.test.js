@@ -95,3 +95,33 @@ test('accepts ordinal day suffixes in month-name dates',()=>{
 test('rejects two-digit numeric years because century is not inferable',()=>{
   assert.throws(()=>parseRevisionDate('30/09/26'),/could not be parsed|guessing/i);
 });
+
+
+test('extracts common SDS fields without punctuation separators',()=>{
+  const r=extractSdsMetadata([
+    'SDS Name SODIUM HYPOCHLORITE',
+    'Manufacturer / Supplier EWASCO',
+    'Product Name SODIUM HYPOCHLORITE',
+    'CAS Number 7681-52-9',
+    'Revision Date 2026-09-30'
+  ].join('\n'));
+  assert.equal(r.name,'SODIUM HYPOCHLORITE');
+  assert.equal(r.manufacturer,'EWASCO');
+  assert.equal(r.product,'SODIUM HYPOCHLORITE');
+  assert.equal(r.cas,'7681-52-9');
+  assert.equal(r.revisionDate,'2026-09-30');
+  assert.equal(r.requiresReview,false);
+});
+
+test('does not accept a short non-CAS identifier as a CAS number',()=>{
+  const r=extractSdsMetadata([
+    'SDS Name SODIUM',
+    'Manufacturer EWASCO',
+    'Product Name SODIUM HYPOCHLORITE',
+    'CAS Number 001',
+    'Revision Date 2026-09-30'
+  ].join('\n'));
+  assert.equal(r.cas,null);
+  assert.deepEqual(r.casCandidates,[]);
+  assert.match(r.missing.join(','),/CAS number/);
+});
