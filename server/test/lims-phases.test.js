@@ -105,9 +105,9 @@ test('Phase 4 lifecycle and calibration-point validation controls are wired',()=
   const routes=fs.readFileSync(new URL('../src/lims-phases.js',import.meta.url),'utf8');
   assert.match(routes,/calibrationPoint/);
   assert.match(routes,/Measured value exceeds the declared tolerance/);
-  assert.match(routes,//api/lims/maintenance/:id/status/);
+  assert.match(routes,/\/api\/lims\/maintenance\/:id\/status/);
   assert.match(routes,/Invalid maintenance status transition/);
-  assert.match(routes,//api/lims/qualifications/:id/status/);
+  assert.match(routes,/\/api\/lims\/qualifications\/:id\/status/);
 });
 test('Analytical results enforce referenced instrument readiness',()=>{
   const routes=fs.readFileSync(new URL('../src/lims.js',import.meta.url),'utf8');
@@ -128,13 +128,13 @@ test('Phase 5 QMS controls are wired',()=>{
 
 test('Phase 5 QMS lifecycle and training controls are wired',()=>{
   const routes=fs.readFileSync(new URL('../src/lims-phases.js',import.meta.url),'utf8');
-  assert.match(routes,/capa\\/\\:id\\/status/);
+  assert.match(routes,/capa\/:id\/status/);
   assert.match(routes,/verifiedBy is required to close CAPA/);
-  assert.match(routes,/change-controls\\/\\:id\\/status/);
+  assert.match(routes,/change-controls\/:id\/status/);
   assert.match(routes,/Impact assessment is required before implementation/);
-  assert.match(routes,/qms\\/dashboard/);
-  assert.match(routes,/training\\/due/);
-  assert.match(routes,/training\\/\\:id\\/status/);
+  assert.match(routes,/qms\/dashboard/);
+  assert.match(routes,/training\/due/);
+  assert.match(routes,/training\/:id\/status/);
 });
 
 
