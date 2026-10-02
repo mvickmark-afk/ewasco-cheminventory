@@ -11,7 +11,8 @@ const runtimeFiles=[
   'src/seed-admin.js',
   'src/sds.js',
   'public/app.js',
-  'public/api-client.js'
+  'public/api-client.js',
+  'public/validators.js'
 ];
 
 const fail=msg=>{throw new Error(msg)};
@@ -27,10 +28,12 @@ for(const rel of runtimeFiles){
 
 const index=fs.readFileSync(path.join(root,'public/index.html'),'utf8');
 if(!index.includes('src="/api-client.js'))fail('Production frontend must load /api-client.js');
+if(!index.includes('src="/validators.js'))fail('Production frontend must load /validators.js');
 if(!index.includes('src="/app.js'))fail('Production frontend must load /app.js');
 if(/<script>[ \t\r\n]*(?!src=)/i.test(index))fail('Production frontend contains an inline application script');
 
 const app=fs.readFileSync(path.join(root,'public/app.js'),'utf8');
+const validators=fs.readFileSync(path.join(root,'public/validators.js'),'utf8');
 const api=fs.readFileSync(path.join(root,'public/api-client.js'),'utf8');
 const server=fs.readFileSync(path.join(root,'src/server.js'),'utf8');
 const sds=fs.readFileSync(path.join(root,'src/sds.js'),'utf8');
@@ -39,6 +42,9 @@ if(!app.includes("if(page==='settings')return renderSettings();"))fail('Settings
 if(!app.includes('async function renderSettings()'))fail('Dedicated Settings renderer is missing');
 if(!app.includes("EWASCO_API.list('settings')"))fail('Settings renderer must read through the API');
 if(!app.includes("EWASCO_API.update('settings'"))fail('Settings editor must update through the API');
+if(!validators.includes('EWASCO_VALIDATE'))fail('Browser validators are missing');
+if(!app.includes('EWASCO_VALIDATE.isSdsFile'))fail('SDS file validation must use centralized validator');
+if(!app.includes('EWASCO_VALIDATE.isCas'))fail('SDS CAS validation must use centralized validator');
 if(!api.includes("login:(u,p)=>api('/auth/login'"))fail('Login API adapter is missing');
 if(!api.includes("csrf().catch(()=>{})"))fail('CSRF client bootstrap is missing');
 
