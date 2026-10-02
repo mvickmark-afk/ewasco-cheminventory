@@ -140,3 +140,6 @@ test('Phase 5 QMS lifecycle and training controls are wired',()=>{
 
 
 test('Phase 6 reporting foundations are wired',()=>{const routes=fs.readFileSync(new URL('../src/lims-phases.js',import.meta.url),'utf8');assert.match(routes,/reports\/coa/);assert.match(routes,/reports\/summary/);assert.match(routes,/Certificate cannot be issued until all results are approved/);});
+
+
+test('Phase 6 reporting, notification and integration controls are wired',()=>{const routes=fs.readFileSync(new URL('../src/lims-phases.js',import.meta.url),'utf8');assert.match(routes,/POST.*api\/lims\/reports|\/api\/lims\/reports/);assert.match(routes,/Invalid report status transition/);assert.match(routes,/Report cannot be issued until all sample results are approved/);assert.match(routes,/notifications\/unread/);assert.match(routes,/integrations\/events/);assert.match(routes,/Integration event not found/);const migration=fs.readFileSync(new URL('../src/migrate.js',import.meta.url),'utf8');assert.match(migration,/011-ewasco-lims-phase6-reporting-integrations/);});
