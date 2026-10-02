@@ -128,7 +128,7 @@ export function registerSdsRoutes({app,pool,auth,upload,inspect,audit,dir}){
   const write=(req,res,next)=>feature(req.user.role,'sds')?next():res.status(403).json({error:'Forbidden'});
   app.post('/api/sds/:id/import',auth,write,upload.single('file'),async(req,res,next)=>{
     const c=await pool.connect();
-    let committed=false;
+    let committed=false,inTransaction=false;
     try{
       const sdsId=idSchema.parse(req.params.id);
       if(!req.file)return res.status(400).json({error:'File required'});
@@ -144,7 +144,7 @@ export function registerSdsRoutes({app,pool,auth,upload,inspect,audit,dir}){
         const fallbackName=metadata.product||path.basename(req.file.originalname,path.extname(req.file.originalname)).replace(/[_-]+/g,' ').trim();
         if(fallbackName)metadata.name=fallbackName;
       }
-      await c.query('BEGIN');
+      await c.query('BEGIN');inTransaction=true;
       const existing=await c.query('SELECT data,version FROM records WHERE organization_id=$1 AND entity=\'sds\' AND id=$2 FOR UPDATE',[req.user.organization_id,sdsId]);
       const data={
         ...(existing.rows[0]?.data||{}),
@@ -168,10 +168,10 @@ export function registerSdsRoutes({app,pool,auth,upload,inspect,audit,dir}){
       const version=q.rows[0].version;
       await c.query('INSERT INTO sds_versions(organization_id,sds_id,version,file_name,mime,size,stored_name,sha256,revision_date,uploaded_by) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',[req.user.organization_id,sdsId,version,req.file.originalname,info.mime,req.file.size,req.file.filename,info.sha256,metadata.revisionDate,req.user.id]);
       await audit(c,req.user,metadata.requiresReview?'sds_import_pending_review':'sds_auto_import','sds',sdsId,{version,fileName:req.file.originalname,mime:info.mime,sha256:info.sha256,metadata});
-      await c.query('COMMIT');committed=true;
+      await c.query('COMMIT');inTransaction=false;committed=true;
       res.status(201).json({id:sdsId,version,metadata,fileName:req.file.originalname,requiresReview:metadata.requiresReview,missing:metadata.missing,casCandidates:metadata.casCandidates});
     }catch(e){
-      await c.query('ROLLBACK').catch(()=>{});
+      if(inTransaction)await c.query('ROLLBACK').catch(()=>{});
       if(req.file&&!committed)await fs.unlink(req.file.path).catch(()=>{});
       next(e);
     }finally{
