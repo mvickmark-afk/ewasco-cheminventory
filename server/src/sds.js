@@ -16,30 +16,30 @@ const idSchema=z.string().min(1).max(120).regex(/^[A-Za-z0-9._:-]+$/);
 const casPattern=/\b\d{2,7}-\d{2}-\d\b/g;
 const labelPatterns={
   sdsName:[
-    /^\s*(?:sds|msds)\s*(?:name|title)\s*(?::|-)\s*(.*)$/i,
-    /^\s*safety\s+data\s+sheet\s+(?:name|title)\s*(?::|-)\s*(.*)$/i,
-    /^\s*document\s+title\s*(?::|-)\s*(.*)$/i,
-    /^\s*title\s*(?::|-)\s*(.*)$/i
+    /^\s*(?:sds|msds)\s*(?:name|title)\s*(?:(?::|-)\s*)?(.*)$/i,
+    /^\s*safety\s+data\s+sheet\s+(?:name|title)\s*(?:(?::|-)\s*)?(.*)$/i,
+    /^\s*document\s+title\s*(?:(?::|-)\s*)?(.*)$/i,
+    /^\s*title\s*(?:(?::|-)\s*)?(.*)$/i
   ],
   manufacturer:[
-    /^\s*manufacturer\s*(?:\/\s*supplier)?\s*(?::|-)\s*(.*)$/i,
-    /^\s*supplier\s*(?::|-)\s*(.*)$/i,
-    /^\s*company\s+name\s*(?::|-)\s*(.*)$/i
+    /^\s*manufacturer\s*(?:\/\s*supplier)?\s*(?:(?::|-)\s*)?(.*)$/i,
+    /^\s*supplier\s*(?:(?::|-)\s*)?(.*)$/i,
+    /^\s*company\s+name\s*(?:(?::|-)\s*)?(.*)$/i
   ],
   product:[
-    /^\s*product\s+identifier\s*(?::|-)\s*(.*)$/i,
-    /^\s*product\s*(?:\/|or)\s*chemical\s*(?::|-)\s*(.*)$/i,
-    /^\s*product\s+name\s*(?::|-)\s*(.*)$/i,
-    /^\s*chemical\s+name\s*(?::|-)\s*(.*)$/i,
-    /^\s*substance\s+name\s*(?::|-)\s*(.*)$/i,
-    /^\s*trade\s+name\s*(?::|-)\s*(.*)$/i
+    /^\s*product\s+identifier\s*(?:(?::|-)\s*)?(.*)$/i,
+    /^\s*product\s*(?:\/|or)\s*chemical\s*(?:(?::|-)\s*)?(.*)$/i,
+    /^\s*product\s+name\s*(?:(?::|-)\s*)?(.*)$/i,
+    /^\s*chemical\s+name\s*(?:(?::|-)\s*)?(.*)$/i,
+    /^\s*substance\s+name\s*(?:(?::|-)\s*)?(.*)$/i,
+    /^\s*trade\s+name\s*(?:(?::|-)\s*)?(.*)$/i
   ],
   cas:[
     /^\s*(?:cas(?:\s+registry)?|cas\s*(?:no|number))\s*(?:\.?\s*(?::|-)\s*)?(.*)$/i
   ],
   revisionDate:[
-    /^\s*date\s+of\s+last\s+revision\s*(?::|-)\s*(.*)$/i,
-    /^\s*(?:revision\s+date|date\s+of\s+revision|date\s+of\s+issue|issue\s+date|revision)\s*(?::|-)\s*(.*)$/i
+    /^\s*date\s+of\s+last\s+revision\s*(?:(?::|-)\s*)?(.*)$/i,
+    /^\s*(?:revision\s+date|date\s+of\s+revision|date\s+of\s+issue|issue\s+date|revision)\s*(?:(?::|-)\s*)?(.*)$/i
   ]
 };
 
