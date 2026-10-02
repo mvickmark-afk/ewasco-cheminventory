@@ -4,7 +4,7 @@ import fs from 'node:fs';
 
 test('EWASCO LIMS Phase 1-6 schema foundation is present',()=>{
   const sql=fs.readFileSync(new URL('../sql/schema.sql',import.meta.url),'utf8');
-  for(const table of ['sampling_schedules','sample_containers','chain_of_custody','custody_events','analytical_batches','batch_members','qc_results','hold_time_rules','calculations','instruments','instrument_interfaces','instrument_files','calibration_records','controlled_documents','document_versions','training_records','deviations','capa_actions','audit_plans','change_controls','reports','notifications','integration_events']){
+  for(const table of ['sampling_schedules','sample_containers','chain_of_custody','custody_events','analytical_batches','batch_members','qc_results','hold_time_rules','calculations','instruments','instrument_interfaces','instrument_files','calibration_records','instrument_maintenance','instrument_qualifications','controlled_documents','document_versions','training_records','deviations','capa_actions','audit_plans','change_controls','reports','notifications','integration_events']){
     assert.ok(sql.includes('CREATE TABLE IF NOT EXISTS '+table+'('),table+' table missing');
   }
 });
@@ -99,4 +99,19 @@ test('Phase 4 instrument file traceability is wired',()=>{
   const routes=fs.readFileSync(new URL('../src/lims-phases.js',import.meta.url),'utf8');
   assert.match(routes,/\/api\/lims\/instruments\/\:id\/files/);
   assert.match(routes,/lims_instrument_file_register/);
+});
+
+test('Phase 4 lifecycle and calibration-point validation controls are wired',()=>{
+  const routes=fs.readFileSync(new URL('../src/lims-phases.js',import.meta.url),'utf8');
+  assert.match(routes,/calibrationPoint/);
+  assert.match(routes,/Measured value exceeds the declared tolerance/);
+  assert.match(routes,//api/lims/maintenance/:id/status/);
+  assert.match(routes,/Invalid maintenance status transition/);
+  assert.match(routes,//api/lims/qualifications/:id/status/);
+});
+test('Analytical results enforce referenced instrument readiness',()=>{
+  const routes=fs.readFileSync(new URL('../src/lims.js',import.meta.url),'utf8');
+  assert.match(routes,/Referenced instrument not found in this organization/);
+  assert.match(routes,/Referenced instrument calibration is overdue/);
+  assert.match(routes,/Referenced instrument qualification is not current/);
 });
