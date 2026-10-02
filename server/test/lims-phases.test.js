@@ -33,3 +33,17 @@ test('Batch lifecycle has controlled transition rules',()=>{
   assert.match(routes,/const transitions=/);
   assert.match(routes,/Invalid batch status transition/);
 });
+
+
+test('Phase 3 OOS/OOT and calculation controls are wired',()=>{
+  const routes=fs.readFileSync(new URL('../src/lims-phases.js',import.meta.url),'utf8');
+  assert.match(routes,/quality-events/);
+  assert.match(routes,/eventType:z\.enum\(\['OOS','OOT'\]\)/);
+  assert.match(routes,/formulaVersion/);
+  assert.match(routes,/calculations/);
+});
+test('Phase 3 quality event table is part of migration verification',()=>{
+  const migration=fs.readFileSync(new URL('../src/migrate.js',import.meta.url),'utf8');
+  assert.match(migration,/quality_events/);
+  assert.match(migration,/007-ewasco-lims-phase3-quality-events/);
+});
