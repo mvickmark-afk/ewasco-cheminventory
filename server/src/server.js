@@ -34,15 +34,24 @@ const allowedDocumentTypes={
   '.docx':{mime:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'},
   '.xlsx':{mime:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}
 };
+const allowedDocumentMimes=new Map([
+  ['application/pdf','.pdf'],
+  ['application/x-pdf','.pdf'],
+  ['application/vnd.openxmlformats-officedocument.wordprocessingml.document','.docx'],
+  ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','.xlsx'],
+  ['application/zip',null]
+]);
 async function inspect(file){
   const b=await fs.readFile(file.path);
   const ext=path.extname(file.originalname).toLowerCase();
-  const type=allowedDocumentTypes[ext];
-  if(!type){await fs.unlink(file.path).catch(()=>{});throw Object.assign(new Error('Only Word (.docx), PDF (.pdf), and Excel (.xlsx) SDS documents are accepted'),{statusCode:415})}
-  if(file.mimetype&&file.mimetype!=='application/octet-stream'&&file.mimetype!==type.mime){
-    const browserMimeAllowed=ext==='.pdf'&&file.mimetype==='application/x-pdf'||ext==='.docx'&&file.mimetype==='application/zip'||ext==='.xlsx'&&file.mimetype==='application/zip';
-    if(!browserMimeAllowed)file.mimetype=type.mime;
+  let type=allowedDocumentTypes[ext];
+  const mime=String(file.mimetype||'').toLowerCase();
+  if(!type&&allowedDocumentMimes.has(mime)){
+    const mimeExt=allowedDocumentMimes.get(mime);
+    if(mimeExt)type=allowedDocumentTypes[mimeExt];
   }
+  if(!type){await fs.unlink(file.path).catch(()=>{});throw Object.assign(new Error('Only Word (.docx), PDF (.pdf), and Excel (.xlsx) SDS documents are accepted'),{statusCode:415})}
+  file.mimetype=type.mime;
   return{mime:type.mime,sha256:crypto.createHash('sha256').update(b).digest('hex')};
 }
 app.use('/api',csrf);app.get('/healthz',(_q,r)=>r.json({status:'ok'}));app.get('/readyz',async(_q,r)=>{try{await pool.query('SELECT 1');r.json({status:'ready'})}catch{r.status(503).json({status:'not-ready'})}});app.get('/api/auth/csrf',(_q,r)=>r.json({token:setCsrf(r)}));
