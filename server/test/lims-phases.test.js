@@ -47,3 +47,18 @@ test('Phase 3 quality event table is part of migration verification',()=>{
   assert.match(migration,/quality_events/);
   assert.match(migration,/007-ewasco-lims-phase3-quality-events/);
 });
+
+test('Phase 3 batch membership and QC completeness controls are wired',()=>{
+  const routes=fs.readFileSync(new URL('../src/lims-phases.js',import.meta.url),'utf8');
+  assert.match(routes,/\/api\/lims\/batches\/:id\/members/);
+  assert.match(routes,/Sample test method does not match the batch method/);
+  assert.match(routes,/requiredQcTypes/);
+  assert.match(routes,/QC_REQUIRED_MISSING/);
+  assert.match(routes,/QC cannot be added to a closed batch/);
+});
+test('Analytical result failure automatically creates an OOS quality event',()=>{
+  const routes=fs.readFileSync(new URL('../src/lims.js',import.meta.url),'utf8');
+  assert.match(routes,/if\(flag==='FAIL'\)/);
+  assert.match(routes,/event_type='OOS'/);
+  assert.match(routes,/lims_quality_event_auto_oos/);
+});
