@@ -4,7 +4,7 @@ import fs from 'node:fs';
 
 test('EWASCO LIMS Phase 1-6 schema foundation is present',()=>{
   const sql=fs.readFileSync(new URL('../sql/schema.sql',import.meta.url),'utf8');
-  for(const table of ['sampling_schedules','sample_containers','chain_of_custody','custody_events','analytical_batches','batch_members','qc_results','hold_time_rules','calculations','instruments','instrument_interfaces','instrument_files','calibration_records','instrument_maintenance','instrument_qualifications','controlled_documents','document_versions','training_records','deviations','capa_actions','audit_plans','change_controls','reports','notifications','integration_events']){
+  for(const table of ['sampling_schedules','sample_containers','chain_of_custody','custody_events','analytical_batches','batch_members','qc_results','hold_time_rules','calculations','instruments','instrument_interfaces','instrument_files','calibration_records','instrument_maintenance','instrument_qualifications','qms_findings','competency_assessments','document_approvals','controlled_documents','document_versions','training_records','deviations','capa_actions','audit_plans','change_controls','reports','notifications','integration_events']){
     assert.ok(sql.includes('CREATE TABLE IF NOT EXISTS '+table+'('),table+' table missing');
   }
 });
@@ -114,4 +114,14 @@ test('Analytical results enforce referenced instrument readiness',()=>{
   assert.match(routes,/Referenced instrument not found in this organization/);
   assert.match(routes,/Referenced instrument calibration is overdue/);
   assert.match(routes,/Referenced instrument qualification is not current/);
+});
+
+test('Phase 5 QMS controls are wired',()=>{
+  const routes=fs.readFileSync(new URL('../src/lims-phases.js',import.meta.url),'utf8');
+  assert.match(routes,/qms\/findings/);
+  assert.match(routes,/Invalid finding status transition/);
+  assert.match(routes,/competency-assessments/);
+  assert.match(routes,/documents\/\:id\/approvals/);
+  const migration=fs.readFileSync(new URL('../src/migrate.js',import.meta.url),'utf8');
+  assert.match(migration,/010-ewasco-lims-phase5-qms-foundation/);
 });
