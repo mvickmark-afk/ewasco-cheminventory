@@ -9,6 +9,19 @@ const readOnly=(req,res,next)=>feature(req.user.role,'limsRead')?next():res.stat
 const setup=(req,res,next)=>feature(req.user.role,'limsSetup')?next():res.status(403).json({error:'LIMS configuration not permitted'});
 const write=(req,res,next)=>feature(req.user.role,'limsResultEntry')?next():res.status(403).json({error:'LIMS operation not permitted'});
 
+export function evaluateQcFlag({valueNumeric,lowerLimit,upperLimit}){
+  if(valueNumeric==null || (lowerLimit==null && upperLimit==null))return 'NOT_EVALUATED';
+  if(lowerLimit!=null && upperLimit!=null && lowerLimit>upperLimit)throw Object.assign(new Error('Lower limit cannot exceed upper limit'),{statusCode:422});
+  if(lowerLimit!=null && valueNumeric<lowerLimit)return 'FAIL';
+  if(upperLimit!=null && valueNumeric>upperLimit)return 'FAIL';
+  return 'PASS';
+}
+
+export function canTransitionBatch(from,to){
+  const transitions={OPEN:['IN_PROGRESS','REJECTED'],IN_PROGRESS:['COMPLETED','REJECTED'],COMPLETED:['ACCEPTED','REJECTED'],ACCEPTED:[],REJECTED:[]};
+  return Boolean(transitions[from]?.includes(to));
+}
+
 export function registerLimsPhaseRoutes({app,pool,audit}){
   const authenticated=async(req,res,next)=>{try{const token=req.cookies?.ewasco_session;if(!token)return res.status(401).json({error:'Authentication required'});const q=await pool.query('SELECT u.id,u.organization_id,u.username,u.role FROM users u JOIN sessions s ON s.user_id=u.id WHERE s.token_hash=$1 AND s.expires_at>now()',[crypto.createHash('sha256').update(token).digest('hex')]);if(!q.rowCount)return res.status(401).json({error:'Invalid or expired session'});req.user=q.rows[0];jwt.verify(token,process.env.JWT_SECRET,{issuer:'ewasco',audience:'ewasco-web'});next()}catch{res.status(401).json({error:'Invalid or expired session'})}};
   app.get('/api/lims/phase-status',authenticated,readOnly,async(req,res,next)=>{try{
@@ -64,11 +77,22 @@ export function registerLimsPhaseRoutes({app,pool,audit}){
 
   app.patch('/api/lims/batches/:id/status',authenticated,write,async(req,res,next)=>{try{
     const d=z.object({status:z.enum(['OPEN','IN_PROGRESS','COMPLETED','ACCEPTED','REJECTED'])}).parse(req.body);
-    const fields={OPEN:['started_at','startedAt'],IN_PROGRESS:['started_at','startedAt'],COMPLETED:['completed_at','completedAt'],ACCEPTED:['accepted_at','acceptedAt'],REJECTED:['completed_at','completedAt']};
-    const col=fields[d.status][0];
+    const current=await pool.query('SELECT * FROM analytical_batches WHERE organization_id=$1 AND id=$2',[req.user.organization_id,req.params.id]);
+    if(!current.rowCount)return res.status(404).json({error:'Batch not found'});
+    const from=current.rows[0].status;
+    if(!canTransitionBatch(from,d.status))return res.status(409).json({error:'Invalid batch status transition',from,to:d.status});
+    if(d.status==='ACCEPTED'){
+      const blockers=await pool.query(`SELECT 'QC_FAIL' AS type,q.id,q.qc_type,q.flag FROM qc_results q WHERE q.organization_id=$1 AND q.batch_id=$2 AND q.flag='FAIL'
+        UNION ALL
+        SELECT 'HOLD_TIME_EXPIRED' AS type,st.id,st.status,NULL FROM batch_members bm JOIN sample_tests st ON st.organization_id=bm.organization_id AND st.id=bm.sample_test_id
+        JOIN samples s ON s.organization_id=st.organization_id AND s.id=st.sample_id JOIN hold_time_rules hr ON hr.organization_id=st.organization_id AND hr.method_id=st.method_id AND hr.active=true
+        WHERE bm.organization_id=$1 AND bm.batch_id=$2 AND s.collected_at IS NOT NULL AND now()>s.collected_at+(hr.hours*interval '1 hour')`,[req.user.organization_id,req.params.id]);
+      if(blockers.rowCount)return res.status(409).json({error:'Batch cannot be accepted while quality gates are failing',blockers:blockers.rows});
+    }
+    const fields={OPEN:'started_at',IN_PROGRESS:'started_at',COMPLETED:'completed_at',ACCEPTED:'accepted_at',REJECTED:'completed_at'};
+    const col=fields[d.status];
     const q=await pool.query('UPDATE analytical_batches SET status=$1,'+col+'=COALESCE('+col+',now()),updated_at=now() WHERE organization_id=$2 AND id=$3 RETURNING *',[d.status,req.user.organization_id,req.params.id]);
-    if(!q.rowCount)return res.status(404).json({error:'Batch not found'});
-    await audit(pool,req.user,'lims_batch_status','analytical_batches',req.params.id,{status:d.status});res.json(q.rows[0])
+    await audit(pool,req.user,'lims_batch_status','analytical_batches',req.params.id,{from,to:d.status});res.json(q.rows[0])
   }catch(e){next(e)}});
   app.get('/api/lims/hold-time/:sampleTestId',authenticated,readOnly,async(req,res,next)=>{try{
     const q=await pool.query(`SELECT st.id,st.sample_id,st.method_id,s.collected_at,hr.hours,hr.warning_hours,hr.source_reference,
@@ -82,7 +106,11 @@ export function registerLimsPhaseRoutes({app,pool,audit}){
     if(!q.rowCount)return res.status(404).json({error:'Sample test not found'});
     res.json(q.rows[0])
   }catch(e){next(e)}});
-  app.post('/api/lims/qc',authenticated,write,async(req,res,next)=>{try{const d=z.object({batchId:uuid.optional().nullable(),sampleTestId:uuid.optional().nullable(),qcType:z.enum(['BLANK','DUPLICATE','SPIKE','LCS','CALIBRATION_CHECK','REFERENCE_MATERIAL']),valueNumeric:z.number().finite().optional().nullable(),expectedValue:z.number().finite().optional().nullable(),lowerLimit:z.number().finite().optional().nullable(),upperLimit:z.number().finite().optional().nullable(),notes:z.string().max(2000).optional().nullable()}).parse(req.body);const flag=d.valueNumeric==null||d.expectedValue==null?'NOT_EVALUATED':(d.lowerLimit!=null&&d.valueNumeric<d.lowerLimit)||(d.upperLimit!=null&&d.valueNumeric>d.upperLimit)?'FAIL':'PASS';const q=await pool.query('INSERT INTO qc_results(organization_id,batch_id,sample_test_id,qc_type,value_numeric,expected_value,lower_limit,upper_limit,flag,notes,created_by) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *',[req.user.organization_id,d.batchId??null,d.sampleTestId??null,d.qcType,d.valueNumeric??null,d.expectedValue??null,d.lowerLimit??null,d.upperLimit??null,flag,d.notes??null,req.user.id]);await audit(pool,req.user,'lims_qc_create','qc_results',q.rows[0].id,{...d,flag});res.status(201).json(q.rows[0])}catch(e){next(e)}});
+  app.post('/api/lims/qc',authenticated,write,async(req,res,next)=>{try{const d=z.object({batchId:uuid,sampleTestId:uuid.optional().nullable(),qcType:z.enum(['BLANK','DUPLICATE','SPIKE','LCS','CALIBRATION_CHECK','REFERENCE_MATERIAL']),valueNumeric:z.number().finite().optional().nullable(),expectedValue:z.number().finite().optional().nullable(),lowerLimit:z.number().finite().optional().nullable(),upperLimit:z.number().finite().optional().nullable(),notes:z.string().max(2000).optional().nullable()}).parse(req.body);
+    const batch=await pool.query('SELECT id,status FROM analytical_batches WHERE organization_id=$1 AND id=$2',[req.user.organization_id,d.batchId]);if(!batch.rowCount)return res.status(404).json({error:'Batch not found'});
+    if(['ACCEPTED','REJECTED'].includes(batch.rows[0].status))return res.status(409).json({error:'QC cannot be added to a closed batch'});
+    if(d.sampleTestId){const st=await pool.query('SELECT id FROM sample_tests WHERE organization_id=$1 AND id=$2',[req.user.organization_id,d.sampleTestId]);if(!st.rowCount)return res.status(404).json({error:'Sample test not found'});}
+    const flag=evaluateQcFlag(d);const q=await pool.query('INSERT INTO qc_results(organization_id,batch_id,sample_test_id,qc_type,value_numeric,expected_value,lower_limit,upper_limit,flag,notes,created_by) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *',[req.user.organization_id,d.batchId,d.sampleTestId??null,d.qcType,d.valueNumeric??null,d.expectedValue??null,d.lowerLimit??null,d.upperLimit??null,flag,d.notes??null,req.user.id]);await audit(pool,req.user,'lims_qc_create','qc_results',q.rows[0].id,{...d,flag});res.status(201).json(q.rows[0])}catch(e){next(e)}});
 
   app.post('/api/lims/instruments',authenticated,setup,async(req,res,next)=>{try{const d=z.object({assetNo:text,name:text,manufacturer:z.string().max(200).optional().nullable(),model:z.string().max(200).optional().nullable(),serialNo:z.string().max(200).optional().nullable(),location:z.string().max(300).optional().nullable(),calibrationDueAt:z.string().datetime({offset:true}).optional().nullable(),metadata:z.record(z.unknown()).optional()}).parse(req.body);const q=await pool.query('INSERT INTO instruments(organization_id,asset_no,name,manufacturer,model,serial_no,location,calibration_due_at,metadata,created_by) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *',[req.user.organization_id,d.assetNo,d.name,d.manufacturer??null,d.model??null,d.serialNo??null,d.location??null,d.calibrationDueAt??null,d.metadata??{},req.user.id]);await audit(pool,req.user,'lims_instrument_create','instruments',q.rows[0].id,d);res.status(201).json(q.rows[0])}catch(e){next(e)}});
 
