@@ -136,3 +136,7 @@ test('Phase 5 QMS lifecycle and training controls are wired',()=>{
   assert.match(routes,/training\\/due/);
   assert.match(routes,/training\\/\\:id\\/status/);
 });
+
+
+
+test('Phase 6 reporting foundations are wired',()=>{const routes=fs.readFileSync(new URL('../src/lims-phases.js',import.meta.url),'utf8');assert.match(routes,/reports\/coa/);assert.match(routes,/reports\/summary/);assert.match(routes,/Certificate cannot be issued until all results are approved/);});
