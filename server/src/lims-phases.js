@@ -101,7 +101,7 @@ export function registerLimsPhaseRoutes({app,pool,audit}){
       const blockers=await pool.query(`SELECT 'QC_FAIL' AS type,q.id,q.qc_type,q.flag FROM qc_results q WHERE q.organization_id=$1 AND q.batch_id=$2 AND q.flag='FAIL'
         UNION ALL
         SELECT 'HOLD_TIME_EXPIRED' AS type,st.id,st.status,NULL FROM batch_members bm JOIN sample_tests st ON st.organization_id=bm.organization_id AND st.id=bm.sample_test_id
-        JOIN samples s ON s.organization_id=st.organization_id AND s.id=s.sample_id JOIN hold_time_rules hr ON hr.organization_id=st.organization_id AND hr.method_id=st.method_id AND hr.active=true
+        JOIN samples s ON s.organization_id=st.organization_id AND s.id=st.sample_id JOIN hold_time_rules hr ON hr.organization_id=st.organization_id AND hr.method_id=st.method_id AND hr.active=true
         WHERE bm.organization_id=$1 AND bm.batch_id=$2 AND s.collected_at IS NOT NULL AND now()>s.collected_at+(hr.hours*interval '1 hour')
         UNION ALL
         SELECT 'QC_REQUIRED_MISSING' AS type,NULL,req.qc_type,NULL FROM analytical_batches b CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(b.metadata->'requiredQcTypes','[]'::jsonb)) req(qc_type)
