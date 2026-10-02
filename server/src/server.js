@@ -37,7 +37,12 @@ const allowedDocumentTypes={
 async function inspect(file){
   const b=await fs.readFile(file.path);
   const ext=path.extname(file.originalname).toLowerCase();
-  const type=allowedDocumentTypes[ext];
+  let type=allowedDocumentTypes[ext];
+  if(!type){
+    const mime=String(file.mimetype||'').toLowerCase();
+    const mimeExt={'application/pdf':'.pdf','application/x-pdf':'.pdf','application/vnd.openxmlformats-officedocument.wordprocessingml.document':'.docx','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':'.xlsx'}[mime];
+    if(mimeExt)type=allowedDocumentTypes[mimeExt];
+  }
   if(!type){await fs.unlink(file.path).catch(()=>{});throw Object.assign(new Error('Only Word (.docx), PDF (.pdf), and Excel (.xlsx) SDS documents are accepted'),{statusCode:415})}
   if(file.mimetype&&file.mimetype!=='application/octet-stream'&&file.mimetype!==type.mime){
     const browserMimeAllowed=ext==='.pdf'&&file.mimetype==='application/x-pdf'||ext==='.docx'&&file.mimetype==='application/zip'||ext==='.xlsx'&&file.mimetype==='application/zip';
