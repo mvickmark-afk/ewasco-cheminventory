@@ -204,3 +204,191 @@ CREATE INDEX IF NOT EXISTS specs_org_active_idx ON specifications(organization_i
 CREATE INDEX IF NOT EXISTS samples_org_status_updated_idx ON samples(organization_id,status,updated_at DESC);
 CREATE INDEX IF NOT EXISTS sample_tests_org_status_idx ON sample_tests(organization_id,status,updated_at DESC);
 CREATE INDEX IF NOT EXISTS results_org_status_idx ON results(organization_id,result_status,updated_at DESC);
+
+
+-- EWASCO LIMS Phase 1-6 domain foundation.
+-- These tables are additive and keep the existing structured LIMS + legacy JSONB model intact.
+
+CREATE TABLE IF NOT EXISTS sampling_schedules(
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  code text NOT NULL, name text NOT NULL, sampling_point_id uuid REFERENCES sampling_points(id) ON DELETE RESTRICT,
+  frequency text NOT NULL, next_due_at timestamptz, active boolean NOT NULL DEFAULT true,
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb, created_by uuid REFERENCES users(id) ON DELETE SET NULL,
+  created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(organization_id,code)
+);
+CREATE TABLE IF NOT EXISTS sample_containers(
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  sample_id uuid NOT NULL REFERENCES samples(id) ON DELETE CASCADE, container_code text NOT NULL,
+  container_type text, preservative text, volume numeric, unit text, condition text,
+  collected_at timestamptz, received_at timestamptz, temperature numeric, notes text,
+  created_at timestamptz NOT NULL DEFAULT now(), UNIQUE(organization_id,container_code)
+);
+CREATE TABLE IF NOT EXISTS chain_of_custody(
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  sample_id uuid NOT NULL REFERENCES samples(id) ON DELETE CASCADE, coc_no text NOT NULL,
+  status text NOT NULL DEFAULT 'OPEN' CHECK(status IN ('OPEN','IN_TRANSIT','RECEIVED','CLOSED','EXCEPTION')),
+  collector_id uuid REFERENCES users(id) ON DELETE SET NULL, collected_at timestamptz,
+  received_by uuid REFERENCES users(id) ON DELETE SET NULL, received_at timestamptz,
+  transport_details text, receipt_condition text, exception_reason text,
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb, created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(organization_id,coc_no)
+);
+CREATE TABLE IF NOT EXISTS custody_events(
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  chain_id uuid NOT NULL REFERENCES chain_of_custody(id) ON DELETE CASCADE, event_type text NOT NULL,
+  from_user_id uuid REFERENCES users(id) ON DELETE SET NULL, to_user_id uuid REFERENCES users(id) ON DELETE SET NULL,
+  event_at timestamptz NOT NULL DEFAULT now(), notes text, metadata jsonb NOT NULL DEFAULT '{}'::jsonb
+);
+
+CREATE TABLE IF NOT EXISTS analytical_batches(
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  batch_no text NOT NULL, batch_type text NOT NULL CHECK(batch_type IN ('ANALYTICAL','PREPARATION','QC','CALIBRATION')),
+  method_id uuid REFERENCES test_methods(id) ON DELETE RESTRICT, status text NOT NULL DEFAULT 'OPEN',
+  started_at timestamptz, completed_at timestamptz, accepted_at timestamptz,
+  created_by uuid REFERENCES users(id) ON DELETE SET NULL, metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(organization_id,batch_no)
+);
+CREATE TABLE IF NOT EXISTS batch_members(
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  batch_id uuid NOT NULL REFERENCES analytical_batches(id) ON DELETE CASCADE, sample_test_id uuid NOT NULL REFERENCES sample_tests(id) ON DELETE CASCADE,
+  created_at timestamptz NOT NULL DEFAULT now(), UNIQUE(batch_id,sample_test_id)
+);
+CREATE TABLE IF NOT EXISTS qc_results(
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  batch_id uuid REFERENCES analytical_batches(id) ON DELETE SET NULL, sample_test_id uuid REFERENCES sample_tests(id) ON DELETE SET NULL,
+  qc_type text NOT NULL CHECK(qc_type IN ('BLANK','DUPLICATE','SPIKE','LCS','CALIBRATION_CHECK','REFERENCE_MATERIAL')),
+  value_numeric numeric, expected_value numeric, lower_limit numeric, upper_limit numeric,
+  flag text NOT NULL DEFAULT 'NOT_EVALUATED' CHECK(flag IN ('PASS','FAIL','NOT_EVALUATED')),
+  notes text, created_by uuid REFERENCES users(id) ON DELETE SET NULL, created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS hold_time_rules(
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  method_id uuid NOT NULL REFERENCES test_methods(id) ON DELETE CASCADE, hours numeric NOT NULL CHECK(hours>0),
+  warning_hours numeric CHECK(warning_hours>=0), source_reference text, active boolean NOT NULL DEFAULT true,
+  UNIQUE(organization_id,method_id)
+);
+CREATE TABLE IF NOT EXISTS calculations(
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  sample_test_id uuid REFERENCES sample_tests(id) ON DELETE CASCADE, formula_code text NOT NULL,
+  formula_version text NOT NULL, inputs jsonb NOT NULL DEFAULT '{}'::jsonb, output_value numeric,
+  output_unit text, intermediates jsonb NOT NULL DEFAULT '{}'::jsonb, calculated_by uuid REFERENCES users(id) ON DELETE SET NULL,
+  calculated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS instruments(
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  asset_no text NOT NULL, name text NOT NULL, manufacturer text, model text, serial_no text,
+  location text, status text NOT NULL DEFAULT 'ACTIVE', calibration_due_at timestamptz,
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb, created_by uuid REFERENCES users(id) ON DELETE SET NULL,
+  created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(organization_id,asset_no)
+);
+CREATE TABLE IF NOT EXISTS instrument_interfaces(
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  instrument_id uuid NOT NULL REFERENCES instruments(id) ON DELETE CASCADE, interface_type text NOT NULL,
+  configuration jsonb NOT NULL DEFAULT '{}'::jsonb, active boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS instrument_files(
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  instrument_id uuid REFERENCES instruments(id) ON DELETE SET NULL, file_name text NOT NULL,
+  mime text, size integer, sha256 text, stored_name text, imported_at timestamptz NOT NULL DEFAULT now(),
+  imported_by uuid REFERENCES users(id) ON DELETE SET NULL, status text NOT NULL DEFAULT 'RECEIVED',
+  error_message text
+);
+CREATE TABLE IF NOT EXISTS calibration_records(
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  instrument_id uuid NOT NULL REFERENCES instruments(id) ON DELETE CASCADE, performed_at timestamptz NOT NULL,
+  due_at timestamptz, status text NOT NULL CHECK(status IN ('PASS','FAIL','OUT_OF_TOLERANCE')),
+  standard_reference text, points jsonb NOT NULL DEFAULT '[]'::jsonb, certificate_file text,
+  performed_by uuid REFERENCES users(id) ON DELETE SET NULL, notes text, created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS controlled_documents(
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  document_no text NOT NULL, title text NOT NULL, document_type text NOT NULL,
+  status text NOT NULL DEFAULT 'DRAFT' CHECK(status IN ('DRAFT','REVIEW','APPROVED','SUPERSEDED','RETIRED')),
+  current_version text, owner_id uuid REFERENCES users(id) ON DELETE SET NULL,
+  created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(organization_id,document_no)
+);
+CREATE TABLE IF NOT EXISTS document_versions(
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  document_id uuid NOT NULL REFERENCES controlled_documents(id) ON DELETE CASCADE, version text NOT NULL,
+  file_name text, mime text, size integer, sha256 text, stored_name text,
+  effective_date date, approved_by uuid REFERENCES users(id) ON DELETE SET NULL, approved_at timestamptz,
+  created_by uuid REFERENCES users(id) ON DELETE SET NULL, created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(document_id,version)
+);
+CREATE TABLE IF NOT EXISTS training_records(
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE, competency text NOT NULL,
+  status text NOT NULL DEFAULT 'CURRENT' CHECK(status IN ('CURRENT','DUE','EXPIRED','SUSPENDED')),
+  assessed_at timestamptz, expires_at timestamptz, evidence_document_id uuid REFERENCES controlled_documents(id) ON DELETE SET NULL,
+  assessor_id uuid REFERENCES users(id) ON DELETE SET NULL, notes text
+);
+CREATE TABLE IF NOT EXISTS deviations(
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  deviation_no text NOT NULL, title text NOT NULL, description text NOT NULL, severity text NOT NULL DEFAULT 'MEDIUM',
+  status text NOT NULL DEFAULT 'OPEN' CHECK(status IN ('OPEN','INVESTIGATION','ACTION','CLOSED')),
+  owner_id uuid REFERENCES users(id) ON DELETE SET NULL, due_at timestamptz, closed_at timestamptz,
+  created_by uuid REFERENCES users(id) ON DELETE SET NULL, created_at timestamptz NOT NULL DEFAULT now(), UNIQUE(organization_id,deviation_no)
+);
+CREATE TABLE IF NOT EXISTS capa_actions(
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  capa_no text NOT NULL, source_type text NOT NULL, source_id text, description text NOT NULL,
+  action_type text NOT NULL CHECK(action_type IN ('CORRECTIVE','PREVENTIVE')), owner_id uuid REFERENCES users(id) ON DELETE SET NULL,
+  due_at timestamptz, status text NOT NULL DEFAULT 'OPEN' CHECK(status IN ('OPEN','IN_PROGRESS','VERIFICATION','CLOSED')),
+  verified_by uuid REFERENCES users(id) ON DELETE SET NULL, verified_at timestamptz,
+  created_by uuid REFERENCES users(id) ON DELETE SET NULL, created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(organization_id,capa_no)
+);
+CREATE TABLE IF NOT EXISTS audit_plans(
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  audit_no text NOT NULL, audit_type text NOT NULL, scope text, scheduled_at timestamptz,
+  status text NOT NULL DEFAULT 'PLANNED', lead_id uuid REFERENCES users(id) ON DELETE SET NULL,
+  findings jsonb NOT NULL DEFAULT '[]'::jsonb, created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(organization_id,audit_no)
+);
+CREATE TABLE IF NOT EXISTS change_controls(
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  change_no text NOT NULL, title text NOT NULL, rationale text, impact_assessment text,
+  status text NOT NULL DEFAULT 'DRAFT' CHECK(status IN ('DRAFT','REVIEW','APPROVED','IMPLEMENTED','CLOSED')),
+  requested_by uuid REFERENCES users(id) ON DELETE SET NULL, approved_by uuid REFERENCES users(id) ON DELETE SET NULL,
+  implemented_at timestamptz, created_at timestamptz NOT NULL DEFAULT now(), UNIQUE(organization_id,change_no)
+);
+
+CREATE TABLE IF NOT EXISTS reports(
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  report_no text NOT NULL, report_type text NOT NULL, sample_id uuid REFERENCES samples(id) ON DELETE SET NULL,
+  status text NOT NULL DEFAULT 'DRAFT' CHECK(status IN ('DRAFT','REVIEW','APPROVED','ISSUED','VOID')),
+  version integer NOT NULL DEFAULT 1, issued_at timestamptz, issued_by uuid REFERENCES users(id) ON DELETE SET NULL,
+  file_name text, sha256 text, created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(organization_id,report_no,version)
+);
+CREATE TABLE IF NOT EXISTS notifications(
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  user_id uuid REFERENCES users(id) ON DELETE CASCADE, event_type text NOT NULL, severity text NOT NULL DEFAULT 'INFO',
+  title text NOT NULL, message text NOT NULL, entity text, record_id text, read_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS integration_events(
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  source text NOT NULL, event_type text NOT NULL, external_id text, payload jsonb NOT NULL,
+  status text NOT NULL DEFAULT 'RECEIVED', error_message text, received_at timestamptz NOT NULL DEFAULT now(),
+  processed_at timestamptz
+);
+
+CREATE INDEX IF NOT EXISTS schedules_org_due_idx ON sampling_schedules(organization_id,active,next_due_at);
+CREATE INDEX IF NOT EXISTS containers_sample_idx ON sample_containers(organization_id,sample_id);
+CREATE INDEX IF NOT EXISTS custody_sample_idx ON chain_of_custody(organization_id,sample_id);
+CREATE INDEX IF NOT EXISTS batch_org_status_idx ON analytical_batches(organization_id,status);
+CREATE INDEX IF NOT EXISTS qc_batch_idx ON qc_results(organization_id,batch_id);
+CREATE INDEX IF NOT EXISTS instruments_org_status_idx ON instruments(organization_id,status);
+CREATE INDEX IF NOT EXISTS documents_org_status_idx ON controlled_documents(organization_id,status);
+CREATE INDEX IF NOT EXISTS deviations_org_status_idx ON deviations(organization_id,status);
+CREATE INDEX IF NOT EXISTS capa_org_status_idx ON capa_actions(organization_id,status);
+CREATE INDEX IF NOT EXISTS reports_org_status_idx ON reports(organization_id,status);
+CREATE INDEX IF NOT EXISTS notifications_user_unread_idx ON notifications(organization_id,user_id,read_at,created_at DESC);
