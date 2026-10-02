@@ -458,3 +458,49 @@ CREATE TABLE IF NOT EXISTS trend_rules(
 );
 CREATE INDEX IF NOT EXISTS trend_rules_org_active_idx ON trend_rules(organization_id,active);
 CREATE UNIQUE INDEX IF NOT EXISTS quality_events_open_result_type_uq ON quality_events(organization_id,result_id,event_type) WHERE status<>'CLOSED' AND result_id IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS qms_findings(
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  finding_no text NOT NULL,
+  source_type text NOT NULL,
+  source_id text,
+  classification text NOT NULL CHECK(classification IN ('OBSERVATION','MINOR','MAJOR','CRITICAL')),
+  description text NOT NULL,
+  status text NOT NULL DEFAULT 'OPEN' CHECK(status IN ('OPEN','INVESTIGATING','CAPA_REQUIRED','CLOSED')),
+  owner_id uuid REFERENCES users(id) ON DELETE SET NULL,
+  due_at timestamptz,
+  closed_at timestamptz,
+  created_by uuid REFERENCES users(id) ON DELETE SET NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(organization_id,finding_no)
+);
+CREATE INDEX IF NOT EXISTS qms_findings_org_status_idx ON qms_findings(organization_id,status,due_at);
+
+CREATE TABLE IF NOT EXISTS competency_assessments(
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  training_record_id uuid REFERENCES training_records(id) ON DELETE CASCADE,
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  competency text NOT NULL,
+  assessment_type text NOT NULL CHECK(assessment_type IN ('INITIAL','PERIODIC','REASSESSMENT')),
+  outcome text NOT NULL CHECK(outcome IN ('COMPETENT','NOT_COMPETENT','CONDITIONAL')),
+  assessed_at timestamptz NOT NULL DEFAULT now(),
+  assessor_id uuid REFERENCES users(id) ON DELETE SET NULL,
+  evidence_reference text,
+  notes text
+);
+CREATE INDEX IF NOT EXISTS competency_assessments_user_idx ON competency_assessments(organization_id,user_id,assessed_at DESC);
+
+CREATE TABLE IF NOT EXISTS document_approvals(
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  document_version_id uuid NOT NULL REFERENCES document_versions(id) ON DELETE CASCADE,
+  action text NOT NULL CHECK(action IN ('SUBMITTED','APPROVED','REJECTED','OBSOLETED')),
+  actor_id uuid REFERENCES users(id) ON DELETE SET NULL,
+  comments text,
+  acted_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS document_approvals_version_idx ON document_approvals(organization_id,document_version_id,acted_at DESC);
+
+CREATE INDEX IF NOT EXISTS training_due_idx ON training_records(organization_id,status,expires_at);
