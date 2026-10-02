@@ -241,4 +241,26 @@ export function registerLimsPhaseRoutes({app,pool,audit}){
   app.post('/api/lims/integrations/events',authenticated,write,async(req,res,next)=>{try{const d=z.object({source:text,eventType:text,externalId:z.string().max(200).optional().nullable(),payload:z.record(z.unknown())}).parse(req.body);const q=await pool.query('INSERT INTO integration_events(organization_id,source,event_type,external_id,payload) VALUES($1,$2,$3,$4,$5) RETURNING *',[req.user.organization_id,d.source,d.eventType,d.externalId??null,d.payload]);await audit(pool,req.user,'integration_event_received','integration_events',q.rows[0].id,{source:d.source,eventType:d.eventType,externalId:d.externalId??null});res.status(202).json(q.rows[0])}catch(e){next(e)}});
 
   app.patch('/api/lims/notifications/:id/read',authenticated,readOnly,async(req,res,next)=>{try{const q=await pool.query('UPDATE notifications SET read_at=COALESCE(read_at,now()) WHERE organization_id=$1 AND id=$2 AND (user_id=$3 OR user_id IS NULL) RETURNING *',[req.user.organization_id,req.params.id,req.user.id]);if(!q.rowCount)return res.status(404).json({error:'Notification not found'});res.json(q.rows[0])}});
+  app.patch('/api/lims/maintenance/:id/status',authenticated,write,async(req,res,next)=>{try{
+    const d=z.object({status:z.enum(['PLANNED','IN_PROGRESS','COMPLETED','CANCELLED']),performedAt:z.string().datetime({offset:true}).optional().nullable(),performedBy:uuid.optional().nullable(),notes:z.string().max(2000).optional().nullable()}).parse(req.body);
+    const q0=await pool.query('SELECT * FROM instrument_maintenance WHERE organization_id=$1 AND id=$2',[req.user.organization_id,req.params.id]);
+    if(!q0.rowCount)return res.status(404).json({error:'Maintenance record not found'});
+    const from=q0.rows[0].status;
+    const transitions={PLANNED:['IN_PROGRESS','CANCELLED'],IN_PROGRESS:['COMPLETED','CANCELLED'],COMPLETED:[],CANCELLED:[]};
+    if(!transitions[from]?.includes(d.status))return res.status(409).json({error:'Invalid maintenance status transition',from,to:d.status});
+    if(d.status==='COMPLETED'&&!d.performedAt)return res.status(422).json({error:'performedAt is required when completing maintenance'});
+    const q=await pool.query("UPDATE instrument_maintenance SET status=$1,performed_at=COALESCE($2,performed_at),performed_by=COALESCE($3,performed_by),notes=COALESCE($4,notes) WHERE organization_id=$5 AND id=$6 RETURNING *",[d.status,d.performedAt??null,d.performedBy??req.user.id,d.notes??null,req.user.organization_id,req.params.id]);
+    if(d.status==='COMPLETED')await pool.query("UPDATE instruments SET metadata=jsonb_set(COALESCE(metadata,'{}'::jsonb),'{lastMaintenance}',to_jsonb(json_build_object('at',COALESCE($1,now()),'maintenanceId',$2)),true),updated_at=now() WHERE organization_id=$3 AND id=$4",[d.performedAt??null,req.params.id,req.user.organization_id,q0.rows[0].instrument_id]);
+    await audit(pool,req.user,'lims_maintenance_status','instrument_maintenance',req.params.id,{from,to:d.status});res.json(q.rows[0])
+  }catch(e){next(e)}});
+  app.patch('/api/lims/qualifications/:id/status',authenticated,setup,async(req,res,next)=>{try{
+    const d=z.object({status:z.enum(['PASS','FAIL','EXPIRED']),performedAt:z.string().datetime({offset:true}).optional(),dueAt:z.string().datetime({offset:true}).optional().nullable(),notes:z.string().max(2000).optional().nullable()}).parse(req.body);
+    const q0=await pool.query('SELECT * FROM instrument_qualifications WHERE organization_id=$1 AND id=$2',[req.user.organization_id,req.params.id]);
+    if(!q0.rowCount)return res.status(404).json({error:'Qualification record not found'});
+    const q=await pool.query('UPDATE instrument_qualifications SET status=$1,performed_at=COALESCE($2,performed_at),due_at=COALESCE($3,due_at),notes=COALESCE($4,notes) WHERE organization_id=$5 AND id=$6 RETURNING *',[d.status,d.performedAt??null,d.dueAt??null,d.notes??null,req.user.organization_id,req.params.id]);
+    if(d.status!=='PASS')await pool.query("UPDATE instruments SET status='QUARANTINED',updated_at=now() WHERE organization_id=$1 AND id=$2 AND status<>'RETIRED'",[req.user.organization_id,q0.rows[0].instrument_id]);
+    else await pool.query("UPDATE instruments SET status='ACTIVE',updated_at=now() WHERE organization_id=$1 AND id=$2 AND status='QUARANTINED'",[req.user.organization_id,q0.rows[0].instrument_id]);
+    await audit(pool,req.user,'lims_qualification_status','instrument_qualifications',req.params.id,{from:q0.rows[0].status,to:d.status});res.json(q.rows[0])
+  }catch(e){next(e)}});
+
 }
