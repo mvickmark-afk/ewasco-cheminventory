@@ -104,7 +104,7 @@ test('extracts common SDS fields without punctuation separators',()=>{
     'Product Name SODIUM HYPOCHLORITE',
     'CAS Number 7681-52-9',
     'Revision Date 2026-09-30'
-  ].join('\\n'));
+  ].join('\n'));
   assert.equal(r.name,'SODIUM HYPOCHLORITE');
   assert.equal(r.manufacturer,'EWASCO');
   assert.equal(r.product,'SODIUM HYPOCHLORITE');
@@ -120,7 +120,7 @@ test('does not accept a short non-CAS identifier as a CAS number',()=>{
     'Product Name SODIUM HYPOCHLORITE',
     'CAS Number 001',
     'Revision Date 2026-09-30'
-  ].join('\\n'));
+  ].join('\n'));
   assert.equal(r.cas,null);
   assert.deepEqual(r.casCandidates,[]);
   assert.match(r.missing.join(','),/CAS number/);
