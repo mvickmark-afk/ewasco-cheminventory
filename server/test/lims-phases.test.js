@@ -17,3 +17,22 @@ test('Phase status exposes all six delivery phases',()=>{
   const routes=fs.readFileSync(new URL('../src/lims-phases.js',import.meta.url),'utf8');
   for(let i=1;i<=6;i++)assert.ok(routes.includes('phase'+i+':'),'phase '+i+' missing');
 });
+
+import {evaluateQcFlag,canTransitionBatch} from '../src/lims-phases.js';
+
+test('QC evaluation applies numeric limits',()=>{
+  assert.equal(evaluateQcFlag({valueNumeric:5,lowerLimit:1,upperLimit:10}),'PASS');
+  assert.equal(evaluateQcFlag({valueNumeric:0,lowerLimit:1,upperLimit:10}),'FAIL');
+  assert.equal(evaluateQcFlag({valueNumeric:11,lowerLimit:1,upperLimit:10}),'FAIL');
+  assert.equal(evaluateQcFlag({valueNumeric:null,lowerLimit:1,upperLimit:10}),'NOT_EVALUATED');
+  assert.equal(evaluateQcFlag({valueNumeric:5,lowerLimit:null,upperLimit:null}),'NOT_EVALUATED');
+  assert.throws(()=>evaluateQcFlag({valueNumeric:5,lowerLimit:10,upperLimit:1}),e=>e.statusCode===422);
+});
+
+test('Batch lifecycle only permits controlled transitions',()=>{
+  assert.equal(canTransitionBatch('OPEN','IN_PROGRESS'),true);
+  assert.equal(canTransitionBatch('IN_PROGRESS','COMPLETED'),true);
+  assert.equal(canTransitionBatch('COMPLETED','ACCEPTED'),true);
+  assert.equal(canTransitionBatch('OPEN','ACCEPTED'),false);
+  assert.equal(canTransitionBatch('ACCEPTED','REJECTED'),false);
+});
