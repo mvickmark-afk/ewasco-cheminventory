@@ -289,6 +289,20 @@ export function registerLimsRoutes({app,pool,auth,audit}){
       if(!q.rowCount)return res.status(404).json({error:'Test not found'});
       const st=q.rows[0];
       if(['APPROVED'].includes(st.status))return res.status(409).json({error:'Approved result is locked'});
+      if(d.instrumentReference){
+        const instrument=await c.query(`SELECT i.id,i.asset_no,i.status,i.calibration_due_at,
+          (SELECT iq.status FROM instrument_qualifications iq WHERE iq.organization_id=i.organization_id AND iq.instrument_id=i.id ORDER BY iq.performed_at DESC LIMIT 1) AS qualification_status,
+          (SELECT iq.due_at FROM instrument_qualifications iq WHERE iq.organization_id=i.organization_id AND iq.instrument_id=i.id ORDER BY iq.performed_at DESC LIMIT 1) AS qualification_due_at
+          FROM instruments i
+          WHERE i.organization_id=$1 AND (i.asset_no=$2 OR i.serial_no=$2 OR i.name=$2)
+          LIMIT 1`,[req.user.organization_id,d.instrumentReference]);
+        if(!instrument.rowCount)return res.status(422).json({error:'Referenced instrument not found in this organization'});
+        const ins=instrument.rows[0];
+        if(ins.status!=='ACTIVE')return res.status(409).json({error:'Referenced instrument is not active',instrumentStatus:ins.status});
+        if(ins.calibration_due_at&&new Date(ins.calibration_due_at)<=new Date())return res.status(409).json({error:'Referenced instrument calibration is overdue'});
+        if(ins.qualification_status&&ins.qualification_status!=='PASS')return res.status(409).json({error:'Referenced instrument qualification is not current',qualificationStatus:ins.qualification_status});
+        if(ins.qualification_due_at&&new Date(ins.qualification_due_at)<=new Date())return res.status(409).json({error:'Referenced instrument qualification is overdue'});
+      }
       if(st.assigned_to&&st.assigned_to!==req.user.id&&!['Administrator','Laboratory Manager'].includes(req.user.role))return res.status(403).json({error:'This test is assigned to another analyst'});
       const numeric=d.valueNumeric!==null&&d.valueNumeric!==undefined;
       if(st.result_type==='NUMERIC'&&!numeric)return res.status(400).json({error:'This method requires a numeric result'});
