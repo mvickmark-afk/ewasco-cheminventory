@@ -288,4 +288,30 @@ export function registerLimsPhaseRoutes({app,pool,audit}){
   app.patch('/api/lims/change-controls/:id/status',authenticated,setup,async(req,res,next)=>{try{const d=z.object({status:z.enum(['DRAFT','REVIEW','APPROVED','IMPLEMENTED','CLOSED']),comments:z.string().max(2000).optional().nullable()}).parse(req.body);const q0=await pool.query('SELECT * FROM change_controls WHERE organization_id=$1 AND id=$2',[req.user.organization_id,req.params.id]);if(!q0.rowCount)return res.status(404).json({error:'Change control not found'});const from=q0.rows[0].status;const transitions={DRAFT:['REVIEW'],REVIEW:['APPROVED','DRAFT'],APPROVED:['IMPLEMENTED'],IMPLEMENTED:['CLOSED'],CLOSED:[]};if(!transitions[from]?.includes(d.status))return res.status(409).json({error:'Invalid change-control status transition'});if(d.status==='IMPLEMENTED'&&!q0.rows[0].impact_assessment)return res.status(422).json({error:'Impact assessment is required before implementation'});const q=await pool.query("UPDATE change_controls SET status=$1,approved_by=CASE WHEN $1='APPROVED' THEN $2 ELSE approved_by END,implemented_at=CASE WHEN $1='IMPLEMENTED' THEN now() ELSE implemented_at END WHERE organization_id=$3 AND id=$4 RETURNING *",[d.status,req.user.id,req.user.organization_id,req.params.id]);await audit(pool,req.user,'lims_change_control_status','change_controls',req.params.id,{from,to:d.status,comments:d.comments??null});res.json(q.rows[0])}catch(e){next(e)}});
   app.get('/api/lims/qms/dashboard',authenticated,readOnly,async(req,res,next)=>{try{const q=await pool.query("SELECT (SELECT count(*) FROM deviations WHERE organization_id=$1 AND status<>'CLOSED') deviations_open,(SELECT count(*) FROM capa_actions WHERE organization_id=$1 AND status<>'CLOSED') capa_open,(SELECT count(*) FROM qms_findings WHERE organization_id=$1 AND status<>'CLOSED') findings_open,(SELECT count(*) FROM quality_events WHERE organization_id=$1 AND status<>'CLOSED') quality_events_open,(SELECT count(*) FROM training_records WHERE organization_id=$1 AND status IN ('DUE','EXPIRED','SUSPENDED')) training_attention,(SELECT count(*) FROM controlled_documents WHERE organization_id=$1 AND status IN ('REVIEW','DRAFT')) documents_pending",[req.user.organization_id]);res.json(q.rows[0])}catch(e){next(e)}});
 
+  app.get('/api/lims/reports/coa/:sampleId',authenticated,readOnly,async(req,res,next)=>{try{
+    const q=await pool.query(`SELECT s.id,s.sample_code,s.collected_at,s.received_at,s.status,
+      st.id sample_test_id,st.status test_status,tm.name method_name,tm.version method_version,
+      r.value_numeric,r.value_text,r.unit,r.flag,r.reviewed_at,r.approved_at,
+      sp.name parameter_name
+      FROM samples s
+      LEFT JOIN sample_tests st ON st.sample_id=s.id
+      LEFT JOIN test_methods tm ON tm.id=st.method_id
+      LEFT JOIN results r ON r.sample_test_id=st.id
+      LEFT JOIN specifications sp ON sp.id=st.specification_id
+      WHERE s.organization_id=$1 AND s.id=$2 ORDER BY sp.name NULLS LAST`,[req.user.organization_id,req.params.sampleId]);
+    if(!q.rowCount)return res.status(404).json({error:'Sample not found'});
+    const unapproved=q.rows.filter(x=>!x.approved_at);
+    if(unapproved.length)return res.status(409).json({error:'Certificate cannot be issued until all results are approved',pendingResults:unapproved.length});
+    res.json({sample:q.rows[0],results:q.rows});
+  }catch(e){next(e)}});
+  app.get('/api/lims/reports/summary',authenticated,readOnly,async(req,res,next)=>{try{
+    const q=await pool.query(`SELECT
+      (SELECT count(*) FROM samples WHERE organization_id=$1) samples_total,
+      (SELECT count(*) FROM sample_tests st JOIN samples s ON s.id=st.sample_id WHERE s.organization_id=$1) tests_total,
+      (SELECT count(*) FROM results r JOIN sample_tests st ON st.id=r.sample_test_id JOIN samples s ON s.id=st.sample_id WHERE s.organization_id=$1 AND r.flag='FAIL') failed_results,
+      (SELECT count(*) FROM quality_events WHERE organization_id=$1 AND status<>'CLOSED') quality_events_open,
+      (SELECT count(*) FROM analytical_batches WHERE organization_id=$1 AND status IN ('OPEN','IN_PROGRESS','COMPLETED')) batches_active`,[req.user.organization_id]);
+    res.json(q.rows[0]);
+  }catch(e){next(e)}});
+
 }
