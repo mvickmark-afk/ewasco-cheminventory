@@ -77,3 +77,11 @@ test('Trend rules have migration tracking',()=>{
   assert.match(migration,/008-ewasco-lims-phase3-trend-rules/);
   assert.match(sql,/CREATE TABLE IF NOT EXISTS trend_rules/);
 });
+
+test('Phase 4 instrument and calibration controls are wired',()=>{
+  const routes=fs.readFileSync(new URL('../src/lims-phases.js',import.meta.url),'utf8');
+  assert.match(routes,/\/api\/lims\/instruments\/due/);
+  assert.match(routes,/\/api\/lims\/instruments\/\:id\/status/);
+  assert.match(routes,/Retired instrument cannot be calibrated/);
+  assert.match(routes,/status='OUT_OF_SERVICE'/);
+});
