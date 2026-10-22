@@ -136,35 +136,30 @@ function manageUser(u){if(!u)return;const changeRole=prompt('Role for '+u.userna
 async function renderSettings(){
  const rows=await EWASCO_API.list('settings');
  const s=rows.find(row=>row.id==='SETTINGS-BASELINE')||rows[0];
- if(!s){$('content').innerHTML='<div class="card"><h3>Settings</h3><p class="empty">No Settings baseline has been initialized.</p></div>';return}
+ const admin=canSetup();
  const item=(label,value)=>'<div class="setting-item"><div class="setting-label">'+esc(label)+'</div><div class="setting-value">'+esc(value??'—')+'</div></div>';
+ const nav=(page,label)=>'<button class="btn" type="button" data-settings-nav="'+esc(page)+'">'+esc(label)+'</button>';
+ const roleRows=[
+  ['Administrator','System configuration, users, audit, backup and all enabled modules'],
+  ['Laboratory Manager','Laboratory setup, review/approval workflows and operational configuration'],
+  ['Analyst/Chemist','Assigned analytical workflows and permitted laboratory records'],
+  ['Storekeeper','Permitted inventory, supplier, batch and procurement workflows']
+ ];
+ const baseline=s?'<div class="settings-grid">'+item('System name',s.systemName||'Not configured')+item('Organization name',s.organizationName||'Not configured')+item('Application version',s.applicationVersion||'Not configured')+item('Baseline initialized',s.baselineInitialized?'Yes':'No')+'</div>':'<p class="empty">No Settings baseline has been initialized.</p>';
  $('content').innerHTML=`
- <div class="page-head"><h2>System settings</h2><div class="actions">${state.user.role==='Administrator'?'<button class="btn primary" id="settingsEdit">Edit settings</button>':''}</div></div>
- <section class="card section-card">
-  <div class="settings-grid">
-   ${item('System name',s.systemName||'Not configured')}
-   ${item('Organization name',s.organizationName||'Not configured')}
-   ${item('Application version',s.applicationVersion||'Not configured')}
-   <div class="setting-item"><div class="setting-label">Baseline initialized</div><div class="setting-value"><span class="badge ${s.baselineInitialized?'good':'warn'}">${s.baselineInitialized?'Yes':'No'}</span></div></div>
-  </div>
-  <p class="note" style="margin-top:14px">These are organization-scoped system baseline settings. Edits are saved through the API and should appear in the audit trail.</p>
- </section>`;
- if(state.user.role==='Administrator')$('settingsEdit').onclick=()=>settingsEditDialog(s);
-}
-function settingsEditDialog(s){
- const html='<div class="overlay" id="settingsModal"><div class="card modal"><div class="bar"><h3>Edit Settings</h3><span class="spacer"></span><button class="btn" id="setClose">Close</button></div>'+
- '<label>System name<input id="setSystemEdit" class="input" value="'+esc(s.systemName||'')+'"></label>'+
- '<label>Organization name<input id="setOrgEdit" class="input" value="'+esc(s.organizationName||'')+'"></label>'+
- '<label>Application version<input id="setVersionEdit" class="input" value="'+esc(s.applicationVersion||'')+'"></label>'+
- '<p class="mini muted">Baseline initialization is system-controlled.</p><p id="setErr" class="error"></p><div class="bar"><span class="spacer"></span><button class="btn primary" id="setSave">Save changes</button></div></div></div>';
- document.body.insertAdjacentHTML('beforeend',html);
- $('setClose').onclick=()=>$('settingsModal').remove();
- $('setSave').onclick=async()=>{try{
-   const next={...s,systemName:$('setSystemEdit').value.trim(),organizationName:$('setOrgEdit').value.trim(),applicationVersion:$('setVersionEdit').value.trim()};
-   if(!next.systemName||!next.organizationName||!next.applicationVersion)throw Error('System name, organization name, and application version are required');
-   await EWASCO_API.update('settings',s.id,next,s._version||0);
-   $('settingsModal').remove();toast('Settings saved',true);await renderSettings();
- }catch(e){$('setErr').textContent=e.message}}
+ <div class="page-head"><div><h2>Configuration centre</h2><p class="note">Organization-scoped settings, operational configuration entry points, access controls and service readiness.</p></div><div class="actions">${s&&admin?'<button class="btn primary" id="settingsEdit">Edit organization baseline</button>':''}</div></div>
+ <section class="card section-card"><h3>Organization and application identity</h3>${baseline}<p class="note" style="margin-top:12px">Baseline edits are saved through the authenticated API and recorded in the audit trail.</p></section>
+ <section class="card section-card"><h3>Inventory and reagent controls</h3><p class="note">Chemical quantities, expiry dates, reagent preparation and consumption are managed in their operational modules. Organization-wide low-stock and expiry-warning defaults are not currently exposed by the Settings API; no unsupported values are shown here.</p><div class="actions">${nav('chemicals','Chemical inventory')}${nav('reagents','Reagent preparation')}${nav('batches','Batches')}${nav('consumption','Consumption')}${nav('calibrations','Calibrations')}</div></section>
+ <section class="card section-card"><h3>Water quality and analytical rules</h3><p class="note">Use the approved methods, specifications and water-treatment records as the current source of operational values. Global jar-test and chlorine-demand rules are not currently exposed as editable Settings fields.</p><div class="actions">${nav('methods','Tests & methods')}${nav('specs','Specifications')}${nav('water','Water treatment')}${nav('points','Sampling points')}</div></section>
+ <section class="card section-card"><h3>Security, roles and governance</h3><div class="table-wrap"><table class="table"><thead><tr><th>Role</th><th>Access summary</th></tr></thead><tbody>${roleRows.map(r=>'<tr><td>'+esc(r[0])+'</td><td>'+esc(r[1])+'</td></tr>').join('')}</tbody></table></div><p class="note">The server enforces permissions. This summary is informational; it does not replace the permission rules or grant additional access.</p><div class="actions">${nav('security','Security & users')}${nav('audit','Audit trail')}</div></section>
+ <section class="card section-card"><h3>Modules</h3><p class="note">Open a module to manage its records. Availability and actions remain governed by the signed-in user's role.</p><div class="actions">${nav('sds','SDS / MSDS')}${nav('equipment','Equipment')}${nav('suppliers','Suppliers')}${nav('procurement','Procurement')}${nav('waste','Waste management')}</div></section>
+ <section class="card section-card"><h3>Service readiness</h3><div class="settings-grid"><div class="setting-item"><div class="setting-label">Application health</div><div class="setting-value" id="settingsHealth">Checking…</div></div><div class="setting-item"><div class="setting-label">Database readiness</div><div class="setting-value" id="settingsReady">Checking…</div></div></div><p class="note" style="margin-top:12px">Deployment commit, build logs and infrastructure configuration must be verified in GitHub and Railway; they are not inferred from this screen.</p></section>`;
+ $('content').querySelectorAll('[data-settings-nav]').forEach(b=>b.onclick=()=>go(b.dataset.settingsNav));
+ if(s&&admin)$('settingsEdit').onclick=()=>settingsEditDialog(s);
+ const check=async(path)=>{try{const r=await fetch(path,{credentials:'include',cache:'no-store'});if(!r.ok)return 'Unavailable ('+r.status+')';const d=await r.json();return d.status==='ready'||d.status==='ok'?'Healthy':'Not ready'}catch{return 'Unavailable'}};
+ const [health,ready]=await Promise.all([check('/healthz'),check('/readyz')]);
+ if($('settingsHealth'))$('settingsHealth').textContent=health;
+ if($('settingsReady'))$('settingsReady').textContent=ready;
 }
 async function renderLegacy(entity){
  if(entity==='audit'){const rows=await fetch('/api/audit',{credentials:'include'}).then(async r=>{if(!r.ok)throw Error((await r.json()).error||'Forbidden');return r.json()});$('content').innerHTML='<div class="table-wrap"><table class="table"><thead><tr><th>Time</th><th>User</th><th>Action</th><th>Entity</th><th>Record</th><th>Data</th></tr></thead><tbody>'+rows.map(r=>'<tr><td>'+fmt(r.created_at)+'</td><td>'+esc(r.username||'system')+'</td><td>'+esc(r.action)+'</td><td>'+esc(r.entity)+'</td><td>'+esc(r.record_id||'—')+'</td><td><code>'+esc(JSON.stringify(r.data||{}))+'</code></td></tr>').join('')+'</tbody></table></div>';return}
