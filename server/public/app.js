@@ -133,6 +133,22 @@ function openUserForm(){
  document.body.insertAdjacentHTML('beforeend',html);$('uclose').onclick=()=>$('userModal').remove();$('usave').onclick=async()=>{try{const r=await EWASCO_API.createUser({username:$('un').value,password:$('up').value,role:$('ur').value,disabled:false});$('userModal').remove();toast('Created '+r.username,true);await renderSecurity()}catch(e){$('ue').textContent=e.message}}
 }
 function manageUser(u){if(!u)return;const changeRole=prompt('Role for '+u.username+' (Administrator / Laboratory Manager / Analyst/Chemist / Storekeeper):',u.role);if(changeRole===null)return;const reset=confirm('Reset this user password?');const pw=reset?prompt('New password (12+ chars, upper/lower/number):'):null;if(reset&&pw===null)return;const nextState=u.disabled?'enable':'disable';const changeState=confirm((u.disabled?'Enable ':'Disable ')+u.username+'?');const payload={role:changeRole||u.role};if(changeState)payload.disabled=!u.disabled; if(reset&&pw)payload.password=pw;EWASCO_API.updateUser(u.id,payload).then(()=>renderSecurity()).catch(e=>alert(e.message))}
+function settingsEditDialog(s){
+ const html='<div class="overlay" id="settingsModal"><div class="card modal"><div class="bar"><h3>Edit Settings</h3><span class="spacer"></span><button class="btn" id="setClose">Close</button></div>'+
+ '<label>System name<input id="setSystemEdit" class="input" value="'+esc(s.systemName||'')+'"></label>'+
+ '<label>Organization name<input id="setOrgEdit" class="input" value="'+esc(s.organizationName||'')+'"></label>'+
+ '<label>Application version<input id="setVersionEdit" class="input" value="'+esc(s.applicationVersion||'')+'"></label>'+
+ '<p class="mini muted">Baseline initialization is system-controlled.</p><p id="setErr" class="error"></p><div class="bar"><span class="spacer"></span><button class="btn primary" id="setSave">Save changes</button></div></div></div>';
+ document.body.insertAdjacentHTML('beforeend',html);
+ $('setClose').onclick=()=>$('settingsModal').remove();
+ $('setSave').onclick=async()=>{try{
+   const next={...s,systemName:$('setSystemEdit').value.trim(),organizationName:$('setOrgEdit').value.trim(),applicationVersion:$('setVersionEdit').value.trim()};
+   if(!next.systemName||!next.organizationName||!next.applicationVersion)throw Error('System name, organization name, and application version are required');
+   await EWASCO_API.update('settings',s.id,next,s._version||0);
+   $('settingsModal').remove();toast('Settings saved',true);await renderSettings();
+ }catch(e){$('setErr').textContent=e.message}}
+}
+
 async function renderSettings(){
  const rows=await EWASCO_API.list('settings');
  const s=rows.find(row=>row.id==='SETTINGS-BASELINE')||rows[0];
