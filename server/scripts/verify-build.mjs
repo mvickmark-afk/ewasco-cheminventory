@@ -55,6 +55,9 @@ if(!index.includes('href="/favicon.svg"'))fail('Production frontend must load th
 if(!index.includes('src="/validators.js'))fail('Production frontend must load /validators.js');
 if(!index.includes('src="/app.js'))fail('Production frontend must load /app.js');
 if(index.indexOf('src="/validators.js')>index.indexOf('src="/app.js'))fail('Validators must load before app.js');
+const assetVersions=[...index.matchAll(/src="\/(?:validators|api-client|app)\.js\?v=([^"]+)"/g)].map(m=>m[1]);
+if(assetVersions.length!==3)fail('All three production JavaScript assets must have explicit cache-version query strings');
+if(new Set(assetVersions).size!==1)fail('Production JavaScript asset cache versions must match; bump all three together after frontend changes');
 if(/<script>[ \t\r\n]*(?!src=)/i.test(index))fail('Production frontend contains an inline application script');
 
 const app=fs.readFileSync(path.join(root,'public/app.js'),'utf8');
@@ -69,6 +72,7 @@ if(!app.includes("EWASCO_API.list('settings')"))fail('Settings renderer must rea
 if(!app.includes("EWASCO_API.update('settings'"))fail('Settings editor must update through the API');
 if(!validators.includes('EWASCO_VALIDATE'))fail('Browser validators are missing');
 if(!app.includes('EWASCO_VALIDATE.isSdsFile'))fail('SDS file validation must use centralized validator');
+if(!app.includes('EWASCO_VALIDATE.sdsFileError'))fail('SDS upload errors must identify the rejected file and supported formats');
 if(!app.includes('EWASCO_VALIDATE.isCas'))fail('SDS CAS validation must use centralized validator');
 if(!api.includes("login:(u,p)=>api('/auth/login'"))fail('Login API adapter is missing');
 if(!api.includes("csrf().catch(()=>{})"))fail('CSRF client bootstrap is missing');
