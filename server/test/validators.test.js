@@ -21,6 +21,16 @@ test('SDS file validator rejects JSON and unknown files',()=>{
   assert.equal(v.isSdsFile({name:'sds.json',type:'application/json'}),false);
   assert.equal(v.isSdsFile({name:'sds.txt',type:'text/plain'}),false);
   assert.equal(v.isSdsFile({name:'sds',type:'application/octet-stream'}),false);
+  assert.equal(v.isSdsFile({name:'sds.doc',type:'application/msword'}),false);
+});
+
+test('SDS file validation errors identify the actual file and accepted formats',()=>{
+  assert.equal(v.sdsFileError({name:'valid.PDF',type:'application/pdf'}),'');
+  const message=v.sdsFileError({name:'safety-sheet.doc',type:'application/msword'});
+  assert.match(message,/safety-sheet\.doc/);
+  assert.match(message,/\.docx, \.pdf, or \.xlsx/);
+  assert.match(message,/application\/msword/);
+  assert.match(v.sdsFileError(null),/Select a Word/);
 });
 
 test('CAS validator accepts normal CAS registry numbers',()=>{
