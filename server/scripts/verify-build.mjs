@@ -73,6 +73,8 @@ if(!app.includes("EWASCO_API.update('settings'"))fail('Settings editor must upda
 if(!validators.includes('EWASCO_VALIDATE'))fail('Browser validators are missing');
 if(!app.includes('EWASCO_VALIDATE.isSdsFile'))fail('SDS file validation must use centralized validator');
 if(!app.includes('EWASCO_VALIDATE.isCas'))fail('SDS CAS validation must use centralized validator');
+if(!app.includes("EWASCO_API.audit()"))fail('Audit page must use the shared API client');
+if(!app.includes('Request ID'))fail('Audit page must display request correlation IDs');
 if(app.includes('<div class="page-head"><h2>Settings</h2>'))fail('Settings must not duplicate the shared page heading and refresh controls');
 if(!app.includes("Unsupported SDS file type: "))fail('SDS upload must identify the rejected filename/type');
 if(!server.includes("res.set('X-Request-ID',requestId)"))fail('HTTP request correlation header is missing');
