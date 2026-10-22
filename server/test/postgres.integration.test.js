@@ -107,6 +107,40 @@ test('PostgreSQL-backed deployment and transaction checks',{skip:skipReason,time
       }
     });
 
+    await t.test('seed-admin never resets or re-enables an existing administrator',async()=>{
+      const organizationName=`CI Existing Admin ${crypto.randomUUID()}`;
+      const username=`ci_existing_${crypto.randomUUID().replaceAll('-','').slice(0,20)}`;
+      const oldPassword='Existing-Admin-Password-123';
+      const organization=await pool.query('INSERT INTO organizations(name) VALUES($1) RETURNING id',[organizationName]);
+      const oldHash=await (await import('bcryptjs')).default.hash(oldPassword,12);
+      const inserted=await pool.query(
+        "INSERT INTO users(organization_id,username,password_hash,role,disabled,failed_login_attempts,locked_until) VALUES($1,$2,$3,'Administrator',true,5,now()+interval '15 minutes') RETURNING id",
+        [organization.rows[0].id,username,oldHash]
+      );
+      const userId=inserted.rows[0].id;
+      const tokenHash=crypto.createHash('sha256').update(`ci-seed-session-${userId}`).digest('hex');
+      await pool.query("INSERT INTO sessions(user_id,token_hash,expires_at) VALUES($1,$2,now()+interval '1 hour')",[userId,tokenHash]);
+
+      try{
+        const result=await runNode('src/seed-admin.js',{
+          DATABASE_URL:databaseUrl,
+          ORG_NAME:organizationName,
+          ADMIN_USERNAME:username,
+          ADMIN_PASSWORD:'New-Seed-Password-456'
+        });
+        assert.equal(result.code,0,result.stderr||result.stdout);
+        assert.match(result.stdout,/admin_seed_skipped_existing/);
+        const row=(await pool.query('SELECT password_hash,disabled,failed_login_attempts,locked_until FROM users WHERE id=$1',[userId])).rows[0];
+        assert.equal(row.password_hash,oldHash);
+        assert.equal(row.disabled,true);
+        assert.equal(row.failed_login_attempts,5);
+        assert.ok(new Date(row.locked_until)>new Date());
+        assert.equal((await pool.query('SELECT count(*)::int count FROM sessions WHERE user_id=$1',[userId])).rows[0].count,1);
+      }finally{
+        await pool.query('DELETE FROM organizations WHERE id=$1',[organization.rows[0].id]);
+      }
+    });
+
     await t.test('stale record update returns its pooled connection idle',async()=>{
       const organizationId=crypto.randomUUID(),userId=crypto.randomUUID(),recordId=`CI-${crypto.randomUUID()}`;
       const appName=`ewasco_transaction_test_${crypto.randomUUID().replaceAll('-','').slice(0,12)}`;
