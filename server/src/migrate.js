@@ -30,6 +30,7 @@ try{
   await client.query("INSERT INTO schema_migrations(version) VALUES('009-ewasco-lims-phase4-instrument-controls') ON CONFLICT DO NOTHING");
   await client.query("INSERT INTO schema_migrations(version) VALUES('010-ewasco-lims-phase5-qms-foundation') ON CONFLICT DO NOTHING");
   await client.query("INSERT INTO schema_migrations(version) VALUES('011-ewasco-lims-phase6-reporting-integrations') ON CONFLICT DO NOTHING");
+  await client.query("INSERT INTO schema_migrations(version) VALUES('012-request-correlated-audit') ON CONFLICT DO NOTHING");
   await client.query('COMMIT');
   console.log(JSON.stringify({event:'migration_verified',tables:requiredTables.length,lims:true}));
 }catch(e){await client.query('ROLLBACK').catch(()=>{});throw e}finally{client.release();await pool.end()}

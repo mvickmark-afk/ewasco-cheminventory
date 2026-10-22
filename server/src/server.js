@@ -1,10 +1,23 @@
-import 'dotenv/config';import crypto from 'node:crypto';import fs from 'node:fs/promises';import path from 'node:path';import {fileURLToPath} from 'node:url';import express from 'express';import bcrypt from 'bcryptjs';import cookieParser from 'cookie-parser';import cors from 'cors';import helmet from 'helmet';import jwt from 'jsonwebtoken';import rateLimit from 'express-rate-limit';import multer from 'multer';import pg from 'pg';import {z} from 'zod';
+import 'dotenv/config';import crypto from 'node:crypto';import {AsyncLocalStorage} from 'node:async_hooks';import fs from 'node:fs/promises';import path from 'node:path';import {fileURLToPath} from 'node:url';import express from 'express';import bcrypt from 'bcryptjs';import cookieParser from 'cookie-parser';import cors from 'cors';import helmet from 'helmet';import jwt from 'jsonwebtoken';import rateLimit from 'express-rate-limit';import multer from 'multer';import pg from 'pg';import {z} from 'zod';
 import {ENTITIES,ROLES,can,feature,validate,passwordSchema,userSchema} from './permissions.js';
 import {registerLimsRoutes} from './lims.js';import {registerLimsPhaseRoutes} from './lims-phases.js';
 import {registerSdsRoutes} from './sds.js';
 const required=n=>{if(!process.env[n])throw Error(`${n} is required`);return process.env[n]};const db=required('DATABASE_URL'),secret=required('JWT_SECRET');const prod=process.env.NODE_ENV==='production';if(secret.length<32||/change|replace|generate/i.test(secret))throw Error('JWT_SECRET is unsafe');if(!process.env.CORS_ORIGIN||process.env.CORS_ORIGIN==='*')throw Error('CORS_ORIGIN must be explicit');if(prod&&process.env.COOKIE_SECURE!=='true')throw Error('COOKIE_SECURE=true required');
-const pool=new pg.Pool({connectionString:db,max:+(process.env.DB_POOL_MAX||10),idleTimeoutMillis:30000});const app=express();app.set('trust proxy',1);const port=+(process.env.PORT||3000),cookie='ewasco_session',csrfCookie='ewasco_csrf',dir=path.resolve(process.env.UPLOAD_DIR||'./uploads');await fs.mkdir(dir,{recursive:true});
+const pool=new pg.Pool({connectionString:db,max:+(process.env.DB_POOL_MAX||10),idleTimeoutMillis:30000});const app=express();const requestContext=new AsyncLocalStorage();app.set('trust proxy',1);const port=+(process.env.PORT||3000),cookie='ewasco_session',csrfCookie='ewasco_csrf',dir=path.resolve(process.env.UPLOAD_DIR||'./uploads');await fs.mkdir(dir,{recursive:true});
 const upload=multer({storage:multer.diskStorage({destination:dir,filename:(_r,f,cb)=>cb(null,`${crypto.randomUUID()}-${path.basename(f.originalname).replace(/[^A-Za-z0-9._-]/g,'_')}`)}),limits:{fileSize:10*1024*1024}});app.disable('x-powered-by');
+app.use((req,res,next)=>{
+  const requestId=crypto.randomUUID();
+  const startedAt=process.hrtime.bigint();
+  req.requestId=requestId;
+  res.set('X-Request-ID',requestId);
+  res.on('finish',()=>{
+    if(req.path.startsWith('/api')||req.path==='/healthz'||req.path==='/readyz'){
+      const durationMs=Number(process.hrtime.bigint()-startedAt)/1e6;
+      console.log(JSON.stringify({event:'http_request',requestId,method:req.method,route:req.route?.path||req.path,status:res.statusCode,durationMs:Math.round(durationMs*100)/100}));
+    }
+  });
+  requestContext.run({requestId},next);
+});
 app.use(helmet({
   referrerPolicy:{policy:'no-referrer'},
   crossOriginEmbedderPolicy:false,
@@ -28,7 +41,7 @@ app.use('/api/auth/login',rateLimit({windowMs:900000,limit:10,standardHeaders:tr
 app.use('/api',(req,res,next)=>{res.set('Cache-Control','no-store');next()});
 const hash=x=>crypto.createHash('sha256').update(x).digest('hex'),token=()=>crypto.randomBytes(32).toString('hex'),sign=u=>jwt.sign({sub:u.id,jti:crypto.randomUUID()},secret,{issuer:'ewasco',audience:'ewasco-web',expiresIn:'8h'});const setCsrf=res=>{const t=token();res.cookie(csrfCookie,t,{sameSite:'strict',secure:process.env.COOKIE_SECURE==='true',maxAge:28800000});return t};
 function csrf(req,res,next){if(!['POST','PUT','PATCH','DELETE'].includes(req.method)||req.path==='/auth/login')return next();const expected=req.cookies[csrfCookie],provided=req.get('X-CSRF-Token'),reject=()=>res.status(403).json({error:'CSRF validation failed'});if(typeof expected!=='string'||expected===''||typeof provided!=='string'||provided==='')return reject();const a=Buffer.from(expected),b=Buffer.from(provided);if(a.length!==b.length||!crypto.timingSafeEqual(a,b))return reject();next()};async function auth(req,res,next){try{const t=req.cookies[cookie],c=jwt.verify(t,secret,{issuer:'ewasco',audience:'ewasco-web'}),q=await pool.query('SELECT u.id,u.organization_id,u.username,u.role FROM users u JOIN sessions s ON s.user_id=u.id WHERE u.id=$1 AND u.disabled=false AND s.token_hash=$2 AND s.expires_at>now()',[c.sub,hash(t)]);if(!q.rowCount)throw Error();req.user=q.rows[0];next()}catch{res.status(401).json({error:'Invalid or expired session'})}};
-const ent=(req,res,next)=>ENTITIES.includes(req.params.entity)?next():res.status(404).json({error:'Unknown entity'}),perm=a=>(req,res,next)=>can(req.user.role,a,req.params.entity)?next():res.status(403).json({error:'Forbidden'}),feat=n=>(req,res,next)=>feature(req.user.role,n)?next():res.status(403).json({error:'Forbidden'});async function audit(c,u,a,e,id,d){await c.query('INSERT INTO audit_log(organization_id,user_id,action,entity,record_id,data) VALUES($1,$2,$3,$4,$5,$6)',[u.organization_id,u.id,a,e,id||null,d||null])};const out=r=>({...r.data,id:r.id,_version:r.version,_updatedAt:r.updated_at});
+const ent=(req,res,next)=>ENTITIES.includes(req.params.entity)?next():res.status(404).json({error:'Unknown entity'}),perm=a=>(req,res,next)=>can(req.user.role,a,req.params.entity)?next():res.status(403).json({error:'Forbidden'}),feat=n=>(req,res,next)=>feature(req.user.role,n)?next():res.status(403).json({error:'Forbidden'});async function audit(c,u,a,e,id,d){const requestId=requestContext.getStore()?.requestId||null;await c.query('INSERT INTO audit_log(organization_id,user_id,action,entity,record_id,data,request_id) VALUES($1,$2,$3,$4,$5,$6,$7)',[u.organization_id,u.id,a,e,id||null,d||null,requestId])};const out=r=>({...r.data,id:r.id,_version:r.version,_updatedAt:r.updated_at});
 const allowedDocumentTypes={
   '.pdf':{mime:'application/pdf'},
   '.docx':{mime:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'},
@@ -61,17 +74,17 @@ app.post('/api/auth/login',async(req,res,next)=>{try{
  const i=z.object({username:z.string().trim().toLowerCase().min(1).max(100),password:z.string().min(1).max(200)}).parse(req.body);
  const q=await pool.query('SELECT * FROM users WHERE username=$1 LIMIT 1',[i.username]);const u=q.rows[0];
  const locked=u?.locked_until&&new Date(u.locked_until)>new Date();
- if(!u||u.disabled||locked){if(u)await pool.query('INSERT INTO audit_log(organization_id,user_id,action,entity,record_id,data) VALUES($1,$2,$3,$4,$5,$6)',[u.organization_id,u.id,'login_denied','auth',u.id,{reason:u.disabled?'disabled':locked?'locked':'invalid_credentials'}]);return res.status(401).json({error:'Invalid username or password'})}
+ if(!u||u.disabled||locked){if(u)await audit(pool,u,'login_denied','auth',u.id,{reason:u.disabled?'disabled':locked?'locked':'invalid_credentials'});return res.status(401).json({error:'Invalid username or password'})}
  const ok=await bcrypt.compare(i.password,u.password_hash);
  if(!ok){const attempts=Math.min((u.failed_login_attempts||0)+1,20),lockedUntil=attempts>=5?new Date(Date.now()+15*60*1000):null;
    await pool.query('UPDATE users SET failed_login_attempts=$1,locked_until=$2 WHERE id=$3',[attempts,lockedUntil,u.id]);
-   await pool.query('INSERT INTO audit_log(organization_id,user_id,action,entity,record_id,data) VALUES($1,$2,$3,$4,$5,$6)',[u.organization_id,u.id,'login_denied','auth',u.id,{reason:'invalid_credentials',attempts,locked:attempts>=5}]);
+   await audit(pool,u,'login_denied','auth',u.id,{reason:'invalid_credentials',attempts,locked:attempts>=5});
    return res.status(401).json({error:'Invalid username or password'});
  }
  const t=sign(u);await pool.query("INSERT INTO sessions(user_id,token_hash,expires_at) VALUES($1,$2,now()+interval '8 hours')",[u.id,hash(t)]);
  await pool.query('UPDATE users SET failed_login_attempts=0,locked_until=NULL,last_login_at=now() WHERE id=$1',[u.id]);
  res.cookie(cookie,t,{httpOnly:true,sameSite:'strict',secure:process.env.COOKIE_SECURE==='true',maxAge:28800000,path:'/'});setCsrf(res);
- await pool.query('INSERT INTO audit_log(organization_id,user_id,action,entity,record_id,data) VALUES($1,$2,$3,$4,$5,$6)',[u.organization_id,u.id,'login_success','auth',u.id,{role:u.role}]);
+ await audit(pool,u,'login_success','auth',u.id,{role:u.role});
  res.json({user:{name:u.username,role:u.role}});
 }catch(e){next(e)}});app.post('/api/auth/logout',auth,async(req,res)=>{await pool.query('DELETE FROM sessions WHERE token_hash=$1',[hash(req.cookies[cookie])]);res.clearCookie(cookie);res.clearCookie(csrfCookie);res.status(204).end()});app.get('/api/auth/me',auth,(req,res)=>res.json({user:{name:req.user.username,role:req.user.role}}));
 app.get('/api/users',auth,(req,res,next)=>{if(!feature(req.user.role,'users'))return res.status(403).json({error:'Forbidden'});pool.query("SELECT id,username,role,disabled,failed_login_attempts,locked_until,password_changed_at,last_login_at,created_at FROM users WHERE organization_id=$1 ORDER BY username",[req.user.organization_id]).then(q=>res.json(q.rows)).catch(next)});
@@ -110,5 +123,5 @@ app.delete('/api/sds/:id/file/:version',auth,feat('sds'),async(req,res,next)=>{c
 registerSdsRoutes({app,pool,auth,upload,inspect,audit,dir});
 registerLimsRoutes({app,pool,auth,audit});registerLimsPhaseRoutes({app,pool,audit});
 app.use(express.static(fileURLToPath(new URL('../public',import.meta.url))));
-app.use((err,req,res,next)=>{if(res.headersSent)return next(err);const isMulter=err instanceof multer.MulterError;const isZod=err?.name==='ZodError'||err?.issues;const status=Number.isInteger(err?.statusCode)?err.statusCode:(isMulter&&err.code==='LIMIT_FILE_SIZE'?413:(isZod?400:500));if(status>=500)console.error(JSON.stringify({event:'api_error',method:req.method,path:req.path,message:err?.message||'internal error'}));const message=status===413?'File is larger than the 10 MB limit':(isZod?'Invalid request':err.message||'Request failed');res.status(status).json({error:status>=500?'Internal server error':message});});
+app.use((err,req,res,next)=>{if(res.headersSent)return next(err);const isMulter=err instanceof multer.MulterError;const isZod=err?.name==='ZodError'||err?.issues;const status=Number.isInteger(err?.statusCode)?err.statusCode:(isMulter&&err.code==='LIMIT_FILE_SIZE'?413:(isZod?400:500));if(status>=500)console.error(JSON.stringify({event:'api_error',requestId:req.requestId,method:req.method,path:req.path,status,message:err?.message||'internal error'}));const message=status===413?'File is larger than the 10 MB limit':(isZod?'Invalid request':err.message||'Request failed');res.status(status).json({error:status>=500?'Internal server error':message,requestId:req.requestId});});
 setInterval(()=>pool.query('DELETE FROM sessions WHERE expires_at<=now()').catch(e=>console.error(JSON.stringify({event:'cleanup_error',message:e.message}))),3600000).unref();const server=app.listen(port,()=>console.log(JSON.stringify({event:'started',port})));const stop=async()=>{server.close(()=>pool.end().then(()=>process.exit(0)));setTimeout(()=>process.exit(1),10000).unref()};process.on('SIGTERM',stop);process.on('SIGINT',stop);

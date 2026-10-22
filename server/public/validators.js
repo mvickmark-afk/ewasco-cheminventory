@@ -14,8 +14,10 @@
   }
   function isSdsFile(file){
     if(!file)return false;
-    return EXTENSIONS.indexOf(extensionOf(file.name))!==-1 ||
-      MIMES.indexOf(String(file.type||'').toLowerCase())!==-1;
+    var extension=extensionOf(file.name);
+    var mime=String(file.type||'').toLowerCase();
+    if(extension)return EXTENSIONS.indexOf(extension)!==-1;
+    return MIMES.indexOf(mime)!==-1;
   }
   function isCas(value){
     return /^[0-9]{2,7}-[0-9]{2}-[0-9]$/.test(String(value||'').trim());
