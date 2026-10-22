@@ -5,6 +5,7 @@ import {spawnSync} from 'node:child_process';
 const root=process.cwd();
 const requiredRuntimeFiles=[
   'src/server.js',
+  'src/observability.js',
   'src/lims.js',
   'src/lims-phases.js',
   'src/permissions.js',
@@ -71,6 +72,10 @@ if(!app.includes('async function renderSettings()'))fail('Dedicated Settings ren
 if(!app.includes("EWASCO_API.list('settings')"))fail('Settings renderer must read through the API');
 if(!app.includes("EWASCO_API.update('settings'"))fail('Settings editor must update through the API');
 if(!validators.includes('EWASCO_VALIDATE'))fail('Browser validators are missing');
+if(!validators.includes('function sdsFileError(file)'))fail('SDS validation must provide actionable rejection diagnostics');
+if(!app.includes('EWASCO_VALIDATE.sdsFileError'))fail('SDS upload must show actionable validation diagnostics');
+if(!server.includes("import {requestContext} from './observability.js'"))fail('Request correlation middleware must be registered');
+if(!server.includes('requestId:req.requestId||null'))fail('API errors must return request correlation IDs');
 if(!app.includes('EWASCO_VALIDATE.isSdsFile'))fail('SDS file validation must use centralized validator');
 if(!app.includes('EWASCO_VALIDATE.sdsFileError'))fail('SDS upload errors must identify the rejected file and supported formats');
 if(!app.includes('EWASCO_VALIDATE.isCas'))fail('SDS CAS validation must use centralized validator');
@@ -108,5 +113,6 @@ console.log(JSON.stringify({
   syntaxChecked:runtimeFiles.length,
   frontendApiCallsChecked:apiCalls.size,
   backendContractsChecked:requiredRoutes.length,
-  sdsImportContractConsistent:true
+  sdsImportContractConsistent:true,
+  requestCorrelationContractConsistent:true
 }));
