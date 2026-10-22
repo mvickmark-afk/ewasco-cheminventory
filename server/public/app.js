@@ -165,7 +165,7 @@ function settingsEditDialog(s){
  }catch(e){$('setErr').textContent=e.message}}
 }
 async function renderLegacy(entity){
- if(entity==='audit'){const rows=await fetch('/api/audit',{credentials:'include'}).then(async r=>{if(!r.ok)throw Error((await r.json()).error||'Forbidden');return r.json()});$('content').innerHTML='<div class="table-wrap"><table class="table"><thead><tr><th>Time</th><th>User</th><th>Action</th><th>Entity</th><th>Record</th><th>Data</th></tr></thead><tbody>'+rows.map(r=>'<tr><td>'+fmt(r.created_at)+'</td><td>'+esc(r.username||'system')+'</td><td>'+esc(r.action)+'</td><td>'+esc(r.entity)+'</td><td>'+esc(r.record_id||'—')+'</td><td><code>'+esc(JSON.stringify(r.data||{}))+'</code></td></tr>').join('')+'</tbody></table></div>';return}
+ if(entity==='audit'){const rows=await EWASCO_API.audit();$('content').innerHTML='<div class="table-wrap"><table class="table"><thead><tr><th>Time</th><th>User</th><th>Action</th><th>Entity</th><th>Record</th><th>Request ID</th><th>Data</th></tr></thead><tbody>'+rows.map(r=>'<tr><td>'+fmt(r.created_at)+'</td><td>'+esc(r.username||'system')+'</td><td>'+esc(r.action)+'</td><td>'+esc(r.entity)+'</td><td>'+esc(r.record_id||'—')+'</td><td><code>'+esc(r.request_id||'—')+'</code></td><td><code>'+esc(JSON.stringify(r.data||{}))+'</code></td></tr>').join('')+'</tbody></table></div>';return}
  const rows=await EWASCO_API.list(entity);if(entity==='sds')return renderSDS(rows);
  $('content').innerHTML=`
  <div class="toolbar"><button class="btn primary" id="legacyNew">New record</button><input id="legacySearch" class="input" placeholder="Search JSON…" style="max-width:340px"><span class="spacer"></span><span class="note">Legacy modules remain API-backed during the LIMS migration.</span></div>
