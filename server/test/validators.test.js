@@ -17,10 +17,16 @@ test('SDS file validator accepts supported MIME types',()=>{
   assert.equal(v.isSdsFile({name:'document',type:'application/x-pdf'}),true);
 });
 
-test('SDS file validator rejects JSON and unknown files',()=>{
+test('SDS file validator rejects JSON, unknown extensions, and misleading MIME types',()=>{
   assert.equal(v.isSdsFile({name:'sds.json',type:'application/json'}),false);
   assert.equal(v.isSdsFile({name:'sds.txt',type:'text/plain'}),false);
   assert.equal(v.isSdsFile({name:'sds',type:'application/octet-stream'}),false);
+  assert.equal(v.isSdsFile({name:'sds.json',type:'application/pdf'}),false);
+  assert.equal(v.isSdsFile({name:'sds.doc',type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'}),false);
+});
+test('SDS file validator accepts supported MIME types only when extension is absent',()=>{
+  assert.equal(v.isSdsFile({name:'document',type:'application/pdf'}),true);
+  assert.equal(v.isSdsFile({name:'document.pdf',type:'application/octet-stream'}),true);
 });
 
 test('CAS validator accepts normal CAS registry numbers',()=>{
