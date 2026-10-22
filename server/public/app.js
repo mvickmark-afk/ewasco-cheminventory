@@ -138,17 +138,15 @@ async function renderSettings(){
  const s=rows[0];
  if(!s){$('content').innerHTML='<div class="card"><h3>Settings</h3><p class="empty">No Settings baseline has been initialized.</p></div>';return}
  $('content').innerHTML=`
- <div class="page-head"><h2>Settings</h2><div class="actions"><button class="btn" id="settingsRefresh">Refresh</button>${state.user.role==='Administrator'?'<button class="btn primary" id="settingsEdit">Edit</button>':''}</div></div>
+ <div class="actions" style="justify-content:flex-end;margin-bottom:1rem">${state.user.role==='Administrator'?'<button class="btn primary" id="settingsEdit">Edit settings</button>':''}</div>
  <section class="card section-card">
   <div class="form-grid">
-   <label>System name<input class="input" id="setSystem" value="${esc(s.systemName||'')}" readonly></label>
-   <label>Organization name<input class="input" id="setOrg" value="${esc(s.organizationName||'')}" readonly></label>
-   <label>Application version<input class="input" id="setVersion" value="${esc(s.applicationVersion||'')}" readonly></label>
-   <label>Baseline initialized<input class="input" id="setBaseline" value="${s.baselineInitialized?'Yes':'No'}" readonly></label>
+   <div><div class="muted">System name</div><p><strong>${esc(s.systemName||'Not configured')}</strong></p></div>
+   <div><div class="muted">Organization name</div><p><strong>${esc(s.organizationName||'Not configured')}</strong></p></div>
+   <div><div class="muted">Application version</div><p><strong>${esc(s.applicationVersion||'Not configured')}</strong></p></div>
+   <div><div class="muted">Baseline initialized</div><p><strong>${s.baselineInitialized?'Yes':'No'}</strong></p></div>
   </div>
- </section>
- <section class="card section-card"><h3>System configuration</h3><p class="note">These settings are stored for this EWASCO organization and are used as the system baseline. Changes are recorded through the normal audit trail.</p></section>`;
- $('settingsRefresh').onclick=()=>renderSettings();
+ </section>`;
  if(state.user.role==='Administrator')$('settingsEdit').onclick=()=>settingsEditDialog(s);
 }
 function settingsEditDialog(s){
@@ -189,13 +187,13 @@ $('srs').onclick=async()=>{try{const name=$('sr_name').value.trim(),manufacturer
 function sdsUploadDialog(id){
 const html='<div class="overlay" id="sdsUploadModal"><div class="card modal"><div class="bar"><h3>Analyze & Replace SDS / MSDS</h3><span class="spacer"></span><button class="btn" id="suc">Close</button></div><p>Select the replacement Word, PDF, or Excel SDS document. Extracted metadata will be shown for review when incomplete or ambiguous.</p><input id="sfile" type="file" class="input" accept=".docx,.pdf,.xlsx"><p id="sue" class="error"></p><div class="bar"><span class="spacer"></span><button class="btn primary" id="sus">Analyze & Upload</button></div></div></div>';
 document.body.insertAdjacentHTML('beforeend',html);$('suc').onclick=()=>$('sdsUploadModal').remove();
-$('sus').onclick=async()=>{try{const f=$('sfile').files[0];if(!f)throw Error('Select a Word, PDF, or Excel SDS file');if(!EWASCO_VALIDATE.isSdsFile(f))throw Error('Only Word (.docx), PDF (.pdf), or Excel (.xlsx) files are accepted');if(f.size>10*1024*1024)throw Error('File is larger than the 10 MB limit');$('sus').disabled=true;$('sus').textContent='Reading SDS…';const r=await EWASCO_API.sdsImport(id,f);$('sdsUploadModal').remove();if(r.requiresReview){await sdsReviewDialog(r.metadata,r)}else{toast('SDS analyzed and activated: '+(r.metadata.product||r.id),true);await renderLegacy('sds')}}catch(e){$('sus').disabled=false;$('sus').textContent='Analyze & Upload';$('sue').textContent=e.message}};
+$('sus').onclick=async()=>{try{const f=$('sfile').files[0];if(!f)throw Error('Select a Word, PDF, or Excel SDS file');if(!EWASCO_VALIDATE.isSdsFile(f))throw Error('Unsupported SDS file type: '+(f.name||file.name||'unnamed file')+'. Choose a .docx, .pdf, or .xlsx file; legacy .doc/.xls files are not supported');if(f.size>10*1024*1024)throw Error('File is larger than the 10 MB limit');$('sus').disabled=true;$('sus').textContent='Reading SDS…';const r=await EWASCO_API.sdsImport(id,f);$('sdsUploadModal').remove();if(r.requiresReview){await sdsReviewDialog(r.metadata,r)}else{toast('SDS analyzed and activated: '+(r.metadata.product||r.id),true);await renderLegacy('sds')}}catch(e){$('sus').disabled=false;$('sus').textContent='Analyze & Upload';$('sue').textContent=e.message}};
 }
 async function sdsCreateDialog(){
 const id='SDS-'+crypto.randomUUID().slice(0,8);
 const html='<div class="overlay" id="sdsCreateModal"><div class="card modal"><div class="bar"><h3>Analyze & Upload SDS / MSDS</h3><span class="spacer"></span><button class="btn" id="scc">Close</button></div><p class="note">The system extracts metadata automatically. If anything is missing or ambiguous, you will be asked to review and complete it manually before activation.</p><input id="scfile" type="file" class="input" accept=".docx,.pdf,.xlsx"><p class="mini muted">Accepted: Word (.docx), PDF (.pdf), Excel (.xlsx). Maximum 10 MB. JSON is not accepted.</p><p id="sce" class="error"></p><div class="bar"><span class="spacer"></span><button class="btn primary" id="scs">Analyze & Upload</button></div></div></div>';
 document.body.insertAdjacentHTML('beforeend',html);$('scc').onclick=()=>$('sdsCreateModal').remove();
-$('scs').onclick=async()=>{try{const file=$('scfile').files[0];if(!file)throw Error('Select a Word, PDF, or Excel SDS file');if(!EWASCO_VALIDATE.isSdsFile(file))throw Error('Only Word (.docx), PDF (.pdf), or Excel (.xlsx) files are accepted');if(file.size>10*1024*1024)throw Error('File is larger than the 10 MB limit');$('scs').disabled=true;$('scs').textContent='Reading SDS…';const r=await EWASCO_API.sdsImport(id,file);$('sdsCreateModal').remove();if(r.requiresReview){await sdsReviewDialog(r.metadata,r)}else{toast('SDS analyzed and activated: '+(r.metadata.product||r.id),true);await renderLegacy('sds')}}catch(e){$('scs').disabled=false;$('scs').textContent='Analyze & Upload';$('sce').textContent=e.message}};
+$('scs').onclick=async()=>{try{const file=$('scfile').files[0];if(!file)throw Error('Select a Word, PDF, or Excel SDS file');if(!EWASCO_VALIDATE.isSdsFile(file))throw Error('Unsupported SDS file type: '+(file.name||'unnamed file')+'. Choose a .docx, .pdf, or .xlsx file; legacy .doc/.xls files are not supported');if(file.size>10*1024*1024)throw Error('File is larger than the 10 MB limit');$('scs').disabled=true;$('scs').textContent='Reading SDS…';const r=await EWASCO_API.sdsImport(id,file);$('sdsCreateModal').remove();if(r.requiresReview){await sdsReviewDialog(r.metadata,r)}else{toast('SDS analyzed and activated: '+(r.metadata.product||r.id),true);await renderLegacy('sds')}}catch(e){$('scs').disabled=false;$('scs').textContent='Analyze & Upload';$('sce').textContent=e.message}};
 }
 function legacyEdit(entity,rows,id){
   const rec=id?rows.find(r=>r.id===id):{id:entity.toUpperCase()+'-'+crypto.randomUUID().slice(0,8)};
