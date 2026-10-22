@@ -70,8 +70,10 @@ CREATE TABLE IF NOT EXISTS audit_log(
   entity text NOT NULL,
   record_id text,
   data jsonb,
+  request_id text,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS request_id text;
 
 -- Structured LIMS core. These tables are intentionally separate from the legacy JSONB records
 -- so analytical data has controlled fields, lifecycle status, ownership and immutable approvals.
@@ -196,6 +198,7 @@ CREATE TABLE IF NOT EXISTS results(
 CREATE UNIQUE INDEX IF NOT EXISTS users_username_global_uq ON users(lower(username));
 CREATE INDEX IF NOT EXISTS records_org_entity_updated_idx ON records(organization_id,entity,updated_at DESC);
 CREATE INDEX IF NOT EXISTS audit_org_created_idx ON audit_log(organization_id,created_at DESC);
+CREATE INDEX IF NOT EXISTS audit_org_request_idx ON audit_log(organization_id,request_id) WHERE request_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS sessions_expiry_idx ON sessions(expires_at);
 CREATE INDEX IF NOT EXISTS sds_versions_lookup_idx ON sds_versions(organization_id,sds_id,version DESC);
 CREATE INDEX IF NOT EXISTS sampling_points_org_active_idx ON sampling_points(organization_id,active);
