@@ -136,7 +136,7 @@ function manageUser(u){if(!u)return;const changeRole=prompt('Role for '+u.userna
 async function renderSettings(){
  const rows=await EWASCO_API.list('settings');
  const s=rows[0];
- if(!s){$('content').innerHTML='<div class="card"><h3>Settings</h3><p class="empty">No Settings baseline has been initialized.</p></div>';return}
+ if(!s){$('content').innerHTML='<div class="card"><p class="empty">No Settings baseline has been initialized.</p></div>';return}
  $('content').innerHTML=`
  <div class="actions" style="justify-content:flex-end;margin-bottom:1rem">${state.user.role==='Administrator'?'<button class="btn primary" id="settingsEdit">Edit settings</button>':''}</div>
  <section class="card section-card">
