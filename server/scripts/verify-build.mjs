@@ -62,6 +62,9 @@ const validators=fs.readFileSync(path.join(root,'public/validators.js'),'utf8');
 const api=fs.readFileSync(path.join(root,'public/api-client.js'),'utf8');
 const server=fs.readFileSync(path.join(root,'src/server.js'),'utf8');
 const sds=fs.readFileSync(path.join(root,'src/sds.js'),'utf8');
+const schema=fs.readFileSync(path.join(root,'sql/schema.sql'),'utf8');
+const filesSchemaHasRequestId=()=>schema.includes('request_id text')&&schema.includes('audit_org_request_idx');
+
 
 if(!app.includes("if(page==='settings')return renderSettings();"))fail('Settings must use its dedicated renderer');
 if(!app.includes('async function renderSettings()'))fail('Dedicated Settings renderer is missing');
@@ -70,6 +73,14 @@ if(!app.includes("EWASCO_API.update('settings'"))fail('Settings editor must upda
 if(!validators.includes('EWASCO_VALIDATE'))fail('Browser validators are missing');
 if(!app.includes('EWASCO_VALIDATE.isSdsFile'))fail('SDS file validation must use centralized validator');
 if(!app.includes('EWASCO_VALIDATE.isCas'))fail('SDS CAS validation must use centralized validator');
+if(app.includes('<div class="page-head"><h2>Settings</h2>'))fail('Settings must not duplicate the shared page heading and refresh controls');
+if(!app.includes("Unsupported SDS file type: "))fail('SDS upload must identify the rejected filename/type');
+if(!server.includes("res.set('X-Request-ID',requestId)"))fail('HTTP request correlation header is missing');
+if(!server.includes("requestContext.getStore()?.requestId"))fail('Audit events must capture the active request correlation id');
+if(!server.includes('request_id) VALUES($1,$2,$3,$4,$5,$6,$7)'))fail('Audit persistence must store request_id');
+if(!server.includes("event:'http_request'"))fail('Structured request logging is missing');
+if(!server.includes("event:'api_error',requestId:req.requestId"))fail('Structured API error logging must include request id');
+if(!filesSchemaHasRequestId())fail('Audit schema must include request_id');
 if(!api.includes("login:(u,p)=>api('/auth/login'"))fail('Login API adapter is missing');
 if(!api.includes("csrf().catch(()=>{})"))fail('CSRF client bootstrap is missing');
 
