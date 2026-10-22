@@ -10,6 +10,7 @@ const requiredRuntimeFiles=[
   'src/permissions.js',
   'src/migrate.js',
   'src/seed-admin.js',
+  'src/reset-admin-password.js',
   'src/sds.js',
   'public/app.js',
   'public/api-client.js',
@@ -65,6 +66,12 @@ const validators=fs.readFileSync(path.join(root,'public/validators.js'),'utf8');
 const api=fs.readFileSync(path.join(root,'public/api-client.js'),'utf8');
 const server=fs.readFileSync(path.join(root,'src/server.js'),'utf8');
 const sds=fs.readFileSync(path.join(root,'src/sds.js'),'utf8');
+
+const recovery=fs.readFileSync(path.join(root,'src/reset-admin-password.js'),'utf8');
+if(!recovery.includes("confirmation !== 'RESET'"))fail('Administrator password recovery must require explicit one-time confirmation');
+if(!recovery.includes("user.role !== 'Administrator'"))fail('Administrator password recovery must refuse non-administrator accounts');
+if(!recovery.includes("DELETE FROM sessions WHERE user_id=$1"))fail('Administrator password recovery must revoke existing sessions');
+if(!recovery.includes("administrator_password_reset"))fail('Administrator password recovery must write an audit event');
 
 if(!app.includes("if(page==='settings')return renderSettings();"))fail('Settings must use its dedicated renderer');
 if(!app.includes('async function renderSettings()'))fail('Dedicated Settings renderer is missing');
