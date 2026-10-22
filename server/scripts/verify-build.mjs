@@ -73,7 +73,7 @@ if(!app.includes("EWASCO_API.update('settings'"))fail('Settings editor must upda
 for(const section of ['Configuration centre','Inventory and reagent controls','Water quality and analytical rules','Security, roles and governance','Service readiness']){
   if(!app.includes(section))fail(`Settings configuration-centre section missing: ${section}`);
 }
-if(!app.includes("fetch('/healthz'")||!app.includes("fetch('/readyz'"))fail('Settings readiness panel must check application and database readiness endpoints');
+if(!app.includes("check('/healthz')")||!app.includes("check('/readyz')"))fail('Settings readiness panel must check application and database readiness endpoints');
 
 if(!validators.includes('EWASCO_VALIDATE'))fail('Browser validators are missing');
 if(!app.includes('EWASCO_VALIDATE.isSdsFile'))fail('SDS file validation must use centralized validator');
