@@ -24,6 +24,10 @@ The service must let an operator connect a user-visible error, a server log entr
 
 Never log credentials, bearer/session tokens, CSRF tokens, document bytes, full request bodies or extracted SDS text. Keep logs structured and machine searchable. User-facing errors should not expose SQL errors, filesystem paths or stack traces. Correlation IDs are identifiers, not authentication credentials.
 
+## Known backup limitation
+
+The current `/api/backup` endpoint exports legacy `records` rows only. It is not a complete LIMS/QMS disaster-recovery backup and does not package SDS file bytes. Do not treat this export as the sole production backup. Full export/restore across structured LIMS tables, controlled documents and SDS file storage must be designed and tested as a separate change.
+
 ## Schema evolution
 
 `audit_log.request_id` is nullable to preserve historical rows. The migration uses `ADD COLUMN IF NOT EXISTS`, and a partial index supports lookup of correlated events without indexing legacy null values. New audit-writing code should use the shared helper rather than issuing direct inserts so request context is not lost. New schema fields must be reflected in migration verification and tests.
