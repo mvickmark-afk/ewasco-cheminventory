@@ -22,7 +22,7 @@ const assistantRateLimit = rateLimit({
   limit: 20,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: req => req.user?.id || req.ip
+  keyGenerator: req => req.user.id
 });
 
 export function extractCitations(response) {
@@ -43,7 +43,7 @@ export function extractCitations(response) {
   return [...new Map(citations.map(c => [c.fileId + ':' + c.filename, c])).values()];
 }
 
-export function registerAiAssistantRoutes({ app, auth, pool, audit }) {
+export function selectGroundedAnswer(response) {\n  const answer = String(response.output_text || '').trim();\n  const citations = extractCitations(response);\n  if (!answer || citations.length === 0) return null;\n  return { answer, citations };\n}\n\nexport function registerAiAssistantRoutes({ app, auth, pool, audit }) {
   app.post('/api/assistant/chat', auth, assistantRateLimit, async (req, res) => {
     const parsed = questionSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: 'Provide a question of up to 4000 characters.' });
