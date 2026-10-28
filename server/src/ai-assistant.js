@@ -2,7 +2,7 @@ import OpenAI from 'openai';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 
-const questionSchema = z.object({
+export const questionSchema = z.object({
   question: z.string().trim().min(1).max(4000)
 }).strict();
 
@@ -25,7 +25,7 @@ const assistantRateLimit = rateLimit({
   keyGenerator: req => req.user?.id || req.ip
 });
 
-function extractCitations(response) {
+export function extractCitations(response) {
   const citations = [];
   for (const item of response.output || []) {
     if (item.type !== 'message') continue;
@@ -34,8 +34,7 @@ function extractCitations(response) {
         if (annotation.type === 'file_citation') {
           citations.push({
             fileId: annotation.file_id,
-            filename: annotation.filename,
-            quote: typeof annotation.index === 'number' ? undefined : undefined
+            filename: annotation.filename
           });
         }
       }
